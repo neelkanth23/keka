@@ -1,4 +1,4 @@
-// keka-hours-ios-glass-full-final.js
+// keka-hours-ios-glass-scary-witch.js
 (function(){
 'use strict';
 
@@ -95,7 +95,7 @@ function createFloating(){
     top:28px;
     right:28px;
     z-index:999999;
-    width:320px;
+    width:330px;
     padding:24px;
     border-radius:28px;
 
@@ -104,7 +104,7 @@ function createFloating(){
         rgba(255,255,255,0.08) 0%,
         rgba(255,255,255,0.02) 100%
       ),
-      rgba(18,22,30,0.78);
+      rgba(18,22,30,0.82);
 
     backdrop-filter: blur(22px) saturate(160%);
     -webkit-backdrop-filter: blur(22px) saturate(160%);
@@ -117,7 +117,6 @@ function createFloating(){
 
     color:white;
     font-family:-apple-system,BlinkMacSystemFont,Inter,system-ui;
-    transition:all .4s ease;
     cursor:move;
     overflow:visible;
   `;
@@ -188,18 +187,18 @@ function createFloating(){
     <div id="witchContainer"
       style="
         position:absolute;
-        bottom:-35px;
-        right:-20px;
+        bottom:-40px;
+        right:-30px;
         display:none;
         pointer-events:none;
       ">
       <img id="witchGif"
-        src="https://media.giphy.com/media/3o7aD2saalBwwftBIY/giphy.gif"
+        src="https://gifdb.com/gif/wicked-witch-flying-9vkfsa559h834cwl.gif"
         style="
-          width:90px;
+          width:110px;
           opacity:0;
-          transition:opacity .6s ease, transform 1.5s ease;
-          transform:translateX(-60px);
+          transition:opacity .6s ease, transform 1.6s ease;
+          transform:translateX(-80px);
         "/>
     </div>
   `;
@@ -267,7 +266,7 @@ function updateFloating(){
     }
   }
 
-  /* ========= WITCH LOGIC ========= */
+  /* ========= SCARY WITCH LOGIC ========= */
 
   const witchContainer = document.getElementById("witchContainer");
   const witchGif = document.getElementById("witchGif");
