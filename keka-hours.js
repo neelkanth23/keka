@@ -1,4 +1,4 @@
-// keka-hours-final-witch-edition.js
+// keka-hours-final-real-time-witch.js
 (function(){
 'use strict';
 
@@ -36,7 +36,7 @@ function minutesBetween(s,e){
   return mins;
 }
 
-/* ================= PROCESS LOGS ================= */
+/* ================= PROCESS LOGS (REAL-TIME FIXED) ================= */
 
 function processLogs(container){
   if(!container) return;
@@ -49,6 +49,7 @@ function processLogs(container){
   let firstStart = null;
   let prevEnd = null;
   let breakM = 0;
+  let activeStart = null;
 
   rows.forEach((row, idx) => {
 
@@ -67,9 +68,28 @@ function processLogs(container){
       breakM += minutesBetween(prevEnd, s);
     }
 
-    totalM += minutesBetween(s, e);
-    prevEnd = e;
+    if(e === "MISSING"){
+      activeStart = s;
+    } else {
+      totalM += minutesBetween(s, e);
+      prevEnd = e;
+    }
   });
+
+  /* ===== ADD LIVE RUNNING TIME ===== */
+  if(activeStart){
+    const st = parseTime(activeStart);
+    if(st){
+      const now = new Date();
+      let liveMinutes =
+        (now.getHours() - st.hours) * 60 +
+        (now.getMinutes() - st.minutes);
+
+      if(liveMinutes > 0){
+        totalM += liveMinutes;
+      }
+    }
+  }
 
   window.KekaHoursLatest = {
     totalMinutes: totalM,
@@ -78,7 +98,7 @@ function processLogs(container){
   };
 }
 
-/* ================= CREATE UI ================= */
+/* ================= UI ================= */
 
 function createUI(){
   if(document.getElementById("kekaFloating")) return;
@@ -92,7 +112,7 @@ function createUI(){
     right:30px;
     z-index:999999;
     padding:22px;
-    width:300px;
+    width:320px;
     border-radius:26px;
     background:rgba(18,22,30,0.82);
     backdrop-filter: blur(22px) saturate(160%);
@@ -103,15 +123,18 @@ function createUI(){
   `;
 
   box.innerHTML = `
-    <div style="font-weight:600;margin-bottom:12px;">⏱ Work Progress</div>
+    <div style="font-weight:600;margin-bottom:14px;">⏱ Work Progress</div>
 
-    <div style="height:10px;background:rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;">
+    <div style="height:12px;background:rgba(255,255,255,0.1);
+         border-radius:12px;overflow:hidden;">
       <div id="progressBar"
-        style="height:100%;width:0%;background:#4f8cff;transition:width 1s linear;">
+        style="height:100%;width:0%;
+        background:#4f8cff;
+        transition:width 1s linear;">
       </div>
     </div>
 
-    <div id="kekaStats" style="margin-top:12px;font-size:13px"></div>
+    <div id="kekaStats" style="margin-top:14px;font-size:13px"></div>
   `;
 
   document.body.appendChild(box);
@@ -127,21 +150,21 @@ function launchFullScreenWitch(){
     position:fixed;
     top:40%;
     left:-300px;
-    width:250px;
+    width:260px;
     z-index:99999999;
     pointer-events:none;
-    transition:left 8s linear;
+    transition:left 10s linear;
   `;
 
   document.body.appendChild(witch);
 
   setTimeout(()=> {
-    witch.style.left = "110%";
+    witch.style.left = "120%";
   }, 100);
 
   setTimeout(()=> {
     witch.remove();
-  }, 60000); // stays for 1 minute
+  }, 60000);
 }
 
 /* ================= UPDATE LOOP ================= */
@@ -151,6 +174,7 @@ function updateUI(){
   if(!data) return;
 
   const { totalMinutes, breakMinutes, firstStart } = data;
+
   const remaining = WORK_MINUTES - totalMinutes;
   const percent = Math.min(100, (totalMinutes / WORK_MINUTES) * 100);
 
@@ -164,20 +188,42 @@ function updateUI(){
 
   const stats = document.getElementById("kekaStats");
   if(stats){
+    let halfTime = "--";
+    let fullTime = "--";
+
+    if(firstStart){
+      const st = parseTime(firstStart);
+      if(st){
+        const base = new Date();
+        base.setHours(st.hours, st.minutes, 0, 0);
+
+        const half = new Date(base.getTime() +
+          (HALF_DAY_MINUTES + breakMinutes)*60000);
+
+        const full = new Date(base.getTime() +
+          (WORK_MINUTES + breakMinutes)*60000);
+
+        halfTime = half.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true});
+        fullTime = full.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true});
+      }
+    }
+
     stats.innerHTML = `
       <div>Total: ${Math.floor(totalMinutes/60)}h ${totalMinutes%60}m</div>
       <div>Break: ${Math.floor(breakMinutes/60)}h ${breakMinutes%60}m</div>
       <div>Left: ${Math.floor(remaining/60)}h ${remaining%60}m</div>
+      <div style="color:#facc15">4hr Done At: ${halfTime}</div>
+      <div style="color:#60a5fa">8hr Done At: ${fullTime}</div>
     `;
   }
 
-  /* 10 Minute Witch */
+  /* 10 MIN WARNING */
   if(remaining <= 10 && remaining > 0 && !tenMinTriggered){
     tenMinTriggered = true;
     alert("🧙‍♀️ 10 Minutes Left...");
   }
 
-  /* 8 Hour Completion Witch */
+  /* 8 HR COMPLETION */
   if(totalMinutes >= WORK_MINUTES && !eightHourTriggered){
     eightHourTriggered = true;
     launchFullScreenWitch();
@@ -198,6 +244,10 @@ const observer = new MutationObserver(()=>{
 observer.observe(document.body,{childList:true,subtree:true});
 
 createUI();
-setInterval(updateUI,1000);
+setInterval(()=>{
+  const c = findLogs();
+  if(c) processLogs(c);
+  updateUI();
+},1000);
 
 })();
