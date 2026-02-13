@@ -1,18 +1,18 @@
-// keka-hours-ios-real-glass.js
+// keka-hours-ios-glass-with-4hr.js
 (function(){
 'use strict';
 
 /* ================= CONFIG ================= */
 
 const WORK_MINUTES = 8 * 60;
-const PRE_ALERT_MINUTES = WORK_MINUTES - 10;
+const HALF_DAY_MINUTES = 4 * 60;
 const STORAGE_PREFIX = 'keka_hours_';
 
 if (Notification && Notification.permission !== "granted") {
   Notification.requestPermission();
 }
 
-/* ================= TIME HELPERS (ORIGINAL STYLE) ================= */
+/* ================= TIME HELPERS ================= */
 
 function parseTime(ts){
   if(!ts || ts === 'MISSING') return null;
@@ -40,7 +40,7 @@ function minutesBetween(s,e){
   return mins;
 }
 
-/* ================= PROCESS LOGS (YOUR ORIGINAL LOGIC STYLE) ================= */
+/* ================= PROCESS LOGS ================= */
 
 function processLogs(container){
   if(!container) return null;
@@ -96,35 +96,28 @@ function createFloating(){
     top:28px;
     right:28px;
     z-index:999999;
-    width:300px;
+    width:310px;
     padding:22px;
     border-radius:26px;
-
     background:
       linear-gradient(180deg,
         rgba(255,255,255,0.08) 0%,
         rgba(255,255,255,0.02) 100%
       ),
-      rgba(20,25,35,0.75);
-
+      rgba(20,25,35,0.78);
     backdrop-filter: blur(22px) saturate(160%);
-    -webkit-backdrop-filter: blur(22px) saturate(160%);
-
     border:1px solid rgba(255,255,255,0.15);
-
     box-shadow:
       0 30px 70px rgba(0,0,0,0.55),
       inset 0 1px 0 rgba(255,255,255,0.2);
-
     color:white;
     font-family:-apple-system,BlinkMacSystemFont,Inter,system-ui;
-    transition:all .4s ease;
     cursor:move;
   `;
 
   box.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center">
-      <div style="font-weight:600;font-size:15px;letter-spacing:.4px">
+      <div style="font-weight:600;font-size:15px">
         ⏱ Work Progress
       </div>
       <button id="closeTimer"
@@ -147,7 +140,7 @@ function createFloating(){
             stroke-linecap="round"
             stroke-dasharray="251"
             stroke-dashoffset="251"
-            style="transition:stroke-dashoffset .5s ease, stroke .3s ease"/>
+            style="transition:stroke-dashoffset .5s ease"/>
         </svg>
 
         <div id="progressPercent"
@@ -173,9 +166,14 @@ function createFloating(){
           Break: --
         </div>
 
+        <div id="halfDayTime"
+          style="margin-top:6px;color:#facc15;font-weight:500">
+          4hr Done At: --
+        </div>
+
         <div id="outTime"
           style="margin-top:6px;color:#60a5fa;font-weight:500">
-          Out Time: --
+          8hr Done At: --
         </div>
       </div>
     </div>
@@ -224,13 +222,23 @@ function updateFloating(){
       const base = new Date();
       base.setHours(st.hours, st.minutes, 0, 0);
 
-      const out = new Date(
+      // 4hr completion time
+      const half = new Date(
+        base.getTime() + (HALF_DAY_MINUTES + breakMinutes)*60000
+      );
+
+      document.getElementById("halfDayTime").innerText =
+        "4hr Done At: " +
+        half.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true});
+
+      // 8hr completion time
+      const full = new Date(
         base.getTime() + (WORK_MINUTES + breakMinutes)*60000
       );
 
       document.getElementById("outTime").innerText =
-        "Out Time: " +
-        out.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true});
+        "8hr Done At: " +
+        full.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true});
     }
   }
 
