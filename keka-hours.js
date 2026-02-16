@@ -144,7 +144,7 @@ function createUI(){
 
 function launchFullScreenWitch(){
   const witch = document.createElement("img");
-  witch.src = "https://gifdb.com/gif/wicked-witch-flying-9vkfsa559h834cwl.gif";
+  witch.src = "https://github.com/neelkanth23/keka/blob/main/manish.jpg";
 
   witch.style.cssText = `
     position:fixed;
