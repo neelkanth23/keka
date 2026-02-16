@@ -144,7 +144,7 @@ function createUI(){
 
 function launchFullScreenWitch(){
   const witch = document.createElement("img");
-  witch.src = "https://raw.githubusercontent.com/neelkanth23/keka/main/manish.jpg";
+  witch.src = "https://raw.githubusercontent.com/neelkanth23/keka/main/witch.jpg";
 
   witch.style.cssText = `
     position:fixed;
