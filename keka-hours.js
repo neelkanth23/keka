@@ -142,7 +142,7 @@ function injectStyles(){
     #kekaTicker {
       display: inline-block;
       white-space: nowrap;
-      animation: keka-tickerScroll 18s linear infinite;
+      animation: keka-tickerScroll 38s linear infinite;
     }
     .keka-dot {
       animation: keka-statusDot 1.4s ease-in-out infinite;
@@ -187,9 +187,9 @@ function createUI(){
     z-index:999999;
     width:360px;
     border-radius:22px;
-    background:rgba(8,11,8,0.78);
-    backdrop-filter:blur(32px) saturate(200%) brightness(0.9);
-    -webkit-backdrop-filter:blur(32px) saturate(200%) brightness(0.9);
+    background:rgba(8,11,8,0.42);
+    backdrop-filter:blur(40px) saturate(220%) brightness(1.05);
+    -webkit-backdrop-filter:blur(40px) saturate(220%) brightness(1.05);
     border:2px solid #84dc00;
     box-shadow:0 24px 60px rgba(0,0,0,0.55);
     color:white;
@@ -335,7 +335,7 @@ function createUI(){
         border-top:1px solid rgba(255,255,255,0.06);padding-top:10px;
       ">
         <span id="kekaTicker">
-          CHAI PIYA KYA? ✦ SCREEN SE AANKH HATA ✦ SURAT KA SHER ✦ KHATAM HONE WALA HAI ✦ THODI AUR MEHNAT ✦ GHAR JAAYEGA TU ✦ KAAM MEIN DIMAAG LAGA ✦
+          CHAI PIVI CHE KE NHI? ✦ BOS NE KHABAR NATHI TU SHU KAR CHE ✦ LAPTOP BAND KAR JALDI ✦ GHAR JA BHAI, MA RAAH JOWE CHE ✦ KAAM KARTO DEKH JARA ✦ 8 GHANTE BAAD FREEDOM MILTI HAI ✦ EXCEL BAND KAR YAAR ✦ SURAT NO SHER BESI RAHYO CHE ✦ THODA AUR, PAKODA MILEGA GHAR PE ✦
         </span>
       </div>
 
