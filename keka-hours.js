@@ -85,8 +85,8 @@ function injectStyles(){
       100% { background-position: 200% center; }
     }
     @keyframes keka-tickerScroll {
-      0%   { transform: translateX(100%); }
-      100% { transform: translateX(-220%); }
+      0%   { transform: translateX(0%); }
+      100% { transform: translateX(-100%); }
     }
     @keyframes keka-statusDot {
       0%,100% { opacity:1; transform:scale(1); }
@@ -142,7 +142,7 @@ function injectStyles(){
     #kekaTicker {
       display: inline-block;
       white-space: nowrap;
-      animation: keka-tickerScroll 38s linear infinite;
+      animation: keka-tickerScroll 28s linear infinite;
     }
     .keka-dot {
       animation: keka-statusDot 1.4s ease-in-out infinite;
@@ -433,53 +433,7 @@ function showToast(emoji, line1, line2, color){
   }, 4500);
 }
 
-/* ================= WITCH FLYOVER ================= */
-
-function launchFullScreenWitch(){
-  launchConfetti();
-
-  const overlay = document.createElement('div');
-  overlay.style.cssText = `
-    position:fixed;top:0;left:0;width:100%;height:100%;
-    z-index:99999990;background:rgba(0,0,0,0);
-    pointer-events:none;transition:background 0.5s;
-    display:flex;align-items:center;justify-content:center;
-  `;
-
-  const badge = document.createElement('div');
-  badge.className = 'keka-completion-badge';
-  badge.style.cssText = `
-    font-family:'Unbounded',sans-serif;font-weight:900;
-    font-size:clamp(26px,5vw,54px);color:#84dc00;
-    text-align:center;text-shadow:0 0 50px rgba(132,220,0,0.9);
-    opacity:0;transition:opacity 0.6s 0.4s;line-height:1.25;
-  `;
-  badge.innerHTML = `8 GHANTE<br><span style="color:#ff6af0">COMPLETE!</span><br><span style="font-family:'Space Grotesk',sans-serif;font-size:0.4em;color:rgba(255,255,255,0.65);">nikal gaya bhai, chutti pakki 🎊</span>`;
-
-  overlay.appendChild(badge);
-  document.body.appendChild(overlay);
-
-  setTimeout(()=>{ overlay.style.background='rgba(0,0,0,0.7)'; badge.style.opacity='1'; }, 300);
-
-  const witch = document.createElement('img');
-  witch.src = 'https://raw.githubusercontent.com/neelkanth23/keka/main/witch.jpg';
-  witch.style.cssText = `
-    position:fixed;top:30%;left:-340px;width:300px;
-    z-index:99999999;pointer-events:none;
-    border-radius:22px;border:3px solid #84dc00;
-    box-shadow:0 0 60px rgba(132,220,0,0.6),0 20px 50px rgba(0,0,0,0.6);
-    transition:left 9s cubic-bezier(0.4,0,0.6,1);
-    filter:saturate(1.5) contrast(1.05);
-  `;
-  document.body.appendChild(witch);
-  setTimeout(()=>{ witch.style.left='120%'; }, 200);
-  setTimeout(()=>{
-    witch.remove();
-    overlay.style.background='rgba(0,0,0,0)';
-    badge.style.opacity='0';
-    setTimeout(()=> overlay.remove(), 600);
-  }, 9800);
-}
+/* witch removed — chutti toast is enough 🎊 */
 
 /* ================= UPDATE UI ================= */
 
@@ -552,7 +506,7 @@ function updateUI(){
   /* 8hr done */
   if(totalMinutes >= WORK_MINUTES && !eightHourTriggered){
     eightHourTriggered = true;
-    launchFullScreenWitch();
+    launchConfetti();
     showToast('🎊', '8 GHANTE PURE!', 'nikal bhai, chutti pakki hai', '#84dc00');
   }
 }
