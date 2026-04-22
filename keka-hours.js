@@ -433,7 +433,138 @@ function showToast(emoji, line1, line2, color){
   }, 4500);
 }
 
-/* witch removed — chutti toast is enough 🎊 */
+/* ================= COMPLETION OVERLAY ================= */
+
+function launchCompletionOverlay(){
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    z-index:99999990;
+    background:rgba(0,0,0,0);
+    pointer-events:none;
+    transition:background 0.5s;
+    display:flex;align-items:center;justify-content:center;
+  `;
+
+  const card = document.createElement('div');
+  card.style.cssText = `
+    background:rgba(8,11,8,0.55);
+    backdrop-filter:blur(30px) saturate(200%);
+    -webkit-backdrop-filter:blur(30px) saturate(200%);
+    border:2px solid #84dc00;
+    border-radius:28px;
+    padding:42px 52px;
+    text-align:center;
+    box-shadow:0 0 80px rgba(132,220,0,0.35), 0 30px 80px rgba(0,0,0,0.6);
+    opacity:0;
+    transform:scale(0.8) translateY(30px);
+    transition:opacity 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.3s,
+               transform 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.3s;
+    pointer-events:auto;
+  `;
+  card.innerHTML = `
+    <div style="font-size:52px;margin-bottom:12px;">🎊</div>
+    <div style="
+      font-family:'Unbounded',sans-serif;
+      font-weight:900;
+      font-size:clamp(28px,4vw,48px);
+      color:#84dc00;
+      line-height:1.1;
+      text-shadow:0 0 40px rgba(132,220,0,0.7);
+      margin-bottom:6px;
+    ">8 GHANTE</div>
+    <div style="
+      font-family:'Unbounded',sans-serif;
+      font-weight:900;
+      font-size:clamp(28px,4vw,48px);
+      color:#ff6af0;
+      line-height:1.1;
+      text-shadow:0 0 40px rgba(255,106,240,0.7);
+      margin-bottom:18px;
+    ">COMPLETE!</div>
+    <div style="
+      font-family:'Space Grotesk',sans-serif;
+      font-size:15px;
+      color:rgba(255,255,255,0.7);
+      line-height:1.5;
+    ">nikal gaya bhai 😭<br>chutti pakki hai, ghar ja heve</div>
+    <div style="
+      margin-top:22px;
+      font-family:'Space Grotesk',sans-serif;
+      font-size:11px;
+      color:rgba(132,220,0,0.5);
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+    ">tap anywhere to close</div>
+  `;
+
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+
+  setTimeout(()=>{
+    overlay.style.background = 'rgba(0,0,0,0.65)';
+    card.style.opacity = '1';
+    card.style.transform = 'scale(1) translateY(0)';
+  }, 100);
+
+  /* close on tap/click */
+  overlay.addEventListener('click', ()=>{
+    overlay.style.background = 'rgba(0,0,0,0)';
+    card.style.opacity = '0';
+    card.style.transform = 'scale(0.9) translateY(20px)';
+    setTimeout(()=> overlay.remove(), 500);
+  });
+}
+
+/* ================= WIDGET COLOR SHIFT ON COMPLETION ================= */
+
+function applyCompletionTheme(){
+  const box = document.getElementById('kekaFloating');
+  if(!box) return;
+
+  /* border goes golden */
+  box.style.border = '2px solid #ffcc00';
+  box.style.boxShadow = '0 0 30px rgba(255,204,0,0.4), 0 24px 60px rgba(0,0,0,0.55)';
+  box.classList.remove('keka-pulsing','keka-rainbow');
+  box.style.animation = 'keka-goldPulse 2s ease-in-out infinite';
+
+  /* header turns golden */
+  const header = box.querySelector('div[style*="background:#84dc00"]');
+  if(header) header.style.background = '#ffcc00';
+
+  /* inject gold pulse keyframe if not there */
+  const existing = document.getElementById('kekaGoldPulse');
+  if(!existing){
+    const s = document.createElement('style');
+    s.id = 'kekaGoldPulse';
+    s.textContent = `
+      @keyframes keka-goldPulse {
+        0%,100% { box-shadow: 0 0 0 0 rgba(255,204,0,0.6), 0 24px 60px rgba(0,0,0,0.55); }
+        50%      { box-shadow: 0 0 0 14px rgba(255,204,0,0), 0 24px 60px rgba(0,0,0,0.55); }
+      }
+    `;
+    document.head.appendChild(s);
+  }
+
+  /* vibe text color */
+  const vibe = document.getElementById('kekaVibe');
+  if(vibe) vibe.style.color = '#ffcc00';
+
+  /* done card border/text */
+  const doneEl = document.getElementById('kekaDone');
+  if(doneEl) doneEl.style.color = '#ffcc00';
+
+  /* progress bar */
+  const bar = document.getElementById('progressBar');
+  if(bar){
+    bar.style.background = 'linear-gradient(90deg,#ffcc00,#ffe566,#ffcc00)';
+    bar.style.boxShadow = '0 0 14px rgba(255,204,0,0.8)';
+  }
+
+  /* percent label */
+  const pct = document.getElementById('kekaPercent');
+  if(pct) pct.style.color = '#ffcc00';
+}
 
 /* ================= UPDATE UI ================= */
 
@@ -507,7 +638,9 @@ function updateUI(){
   if(totalMinutes >= WORK_MINUTES && !eightHourTriggered){
     eightHourTriggered = true;
     launchConfetti();
-    showToast('🎊', '8 GHANTE PURE!', 'nikal bhai, chutti pakki hai', '#84dc00');
+    launchCompletionOverlay();
+    applyCompletionTheme();
+    showToast('🎊', '8 GHANTE PURE!', 'nikal bhai, chutti pakki hai', '#ffcc00');
   }
 }
 
