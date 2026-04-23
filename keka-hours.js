@@ -566,6 +566,66 @@ function applyCompletionTheme(){
   if(pct) pct.style.color = '#ffcc00';
 }
 
+/* ================= BROWSER NOTIFICATION ================= */
+
+function requestNotificationPermission(){
+  if(!('Notification' in window)) return;
+  if(Notification.permission === 'default'){
+    /* small delay so it doesn't fire the moment the script loads */
+    setTimeout(()=>{
+      Notification.requestPermission();
+    }, 3000);
+  }
+}
+
+function fireNativeNotification(){
+  if(!('Notification' in window)) return;
+  if(Notification.permission !== 'granted') return;
+
+  try {
+    const n = new Notification('🎊 8 Ghante Pure Bhai!', {
+      body: 'Chutti pakki hai — nikal ghar ja heve! Keka band kar.',
+      icon: 'https://raw.githubusercontent.com/neelkanth23/keka/main/witch.jpg',
+      badge: 'https://raw.githubusercontent.com/neelkanth23/keka/main/witch.jpg',
+      tag: 'keka-8hr',          /* prevents duplicate if fired twice */
+      requireInteraction: true  /* stays on screen until user dismisses */
+    });
+
+    /* clicking the notification focuses the Keka tab */
+    n.onclick = () => {
+      window.focus();
+      n.close();
+    };
+  } catch(e){
+    /* silently ignore if notification fails (e.g. iframe restrictions) */
+  }
+}
+
+/* ================= TAB TITLE FLASH ================= */
+
+let titleFlashInterval = null;
+const originalTitle = document.title;
+
+function startTitleFlash(){
+  if(titleFlashInterval) return; /* don't start twice */
+  let toggle = false;
+  titleFlashInterval = setInterval(()=>{
+    document.title = toggle
+      ? '🎊 CHUTTI TIME! Ghar Ja!'
+      : '✅ 8hrs Done — Nikal Bhai!';
+    toggle = !toggle;
+  }, 1200);
+}
+
+function stopTitleFlash(){
+  if(titleFlashInterval){
+    clearInterval(titleFlashInterval);
+    titleFlashInterval = null;
+  }
+  document.title = originalTitle;
+}
+
+
 /* ================= UPDATE UI ================= */
 
 function updateUI(){
@@ -640,6 +700,8 @@ function updateUI(){
     launchConfetti();
     launchCompletionOverlay();
     applyCompletionTheme();
+    fireNativeNotification();
+    startTitleFlash();
     showToast('🎊', '8 GHANTE PURE!', 'nikal bhai, chutti pakki hai', '#ffcc00');
   }
 }
@@ -658,6 +720,7 @@ const observer = new MutationObserver(()=>{
 observer.observe(document.body,{childList:true,subtree:true});
 
 createUI();
+requestNotificationPermission();
 setInterval(()=>{
   const c = findLogs();
   if(c) processLogs(c);
