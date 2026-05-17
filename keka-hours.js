@@ -137,9 +137,50 @@
         }
       }
 
-      @keyframes km-float {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-3px); }
+      @keyframes km-soft-glow {
+        0%, 100% {
+          filter: drop-shadow(0 18px 30px rgba(0,0,0,.20));
+        }
+        50% {
+          filter: drop-shadow(0 22px 38px rgba(255,214,0,.24));
+        }
+      }
+
+      @keyframes km-victory-pop {
+        0% {
+          transform: scale(.92) translateY(24px);
+          opacity: 0;
+        }
+        60% {
+          transform: scale(1.04) translateY(-4px);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(1) translateY(0);
+          opacity: 1;
+        }
+      }
+
+      @keyframes km-victory-rainbow {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+
+      @keyframes km-flag-wave {
+        0%, 100% { transform: rotate(-4deg) translateY(0); }
+        50% { transform: rotate(4deg) translateY(-3px); }
+      }
+
+      @keyframes km-star-spin {
+        0% { transform: rotate(0deg) scale(1); }
+        50% { transform: rotate(180deg) scale(1.18); }
+        100% { transform: rotate(360deg) scale(1); }
+      }
+
+      @keyframes km-medal-shine {
+        0% { transform: translateX(-130%) rotate(22deg); }
+        100% { transform: translateX(160%) rotate(22deg); }
       }
 
       @keyframes km-mrun {
@@ -530,7 +571,9 @@
         0 24px 70px rgba(0,0,0,.42);
       animation:
         km-slidein .65s cubic-bezier(.34,1.4,.64,1) forwards,
-        km-float 4s ease-in-out infinite .9s;
+        km-soft-glow 4s ease-in-out infinite .9s;
+      will-change: filter;
+      transform: translateZ(0);
       user-select: none;
       cursor: default;
     `;
@@ -1301,15 +1344,35 @@
     const bCtx = bc.getContext('2d');
 
     let frame = 0;
+    let last = 0;
+    const FPS = 8;
+    const frameDelay = 1000 / FPS;
 
-    setInterval(() => {
-      frame++;
-      drawMarioFrame(mCtx, frame, false);
-      drawGoombaFrame(gCtx, frame);
-      drawMarioFrame(lCtx, frame, true);
-      drawPeachFrame(pCtx);
-      drawBowserFrame(bCtx);
-    }, 180);
+    function loop(now) {
+      if (now - last >= frameDelay) {
+        last = now;
+        frame++;
+
+        drawMarioFrame(mCtx, frame, false);
+        drawGoombaFrame(gCtx, frame);
+        drawMarioFrame(lCtx, frame, true);
+
+        if (frame % 4 === 0) {
+          drawPeachFrame(pCtx);
+          drawBowserFrame(bCtx);
+        }
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    drawMarioFrame(mCtx, frame, false);
+    drawGoombaFrame(gCtx, frame);
+    drawMarioFrame(lCtx, frame, true);
+    drawPeachFrame(pCtx);
+    drawBowserFrame(bCtx);
+
+    requestAnimationFrame(loop);
   }
 
   function launchConfetti() {
@@ -1384,266 +1447,401 @@
       setTimeout(() => t.remove(), 500);
     }, 5000);
   }
-
   function launchVictoryOverlay() {
     const overlay = document.createElement('div');
 
     overlay.style.cssText = `
       position:fixed;
-      top:0;
-      left:0;
-      width:100%;
-      height:100%;
+      inset:0;
       z-index:2147483644;
-      background:rgba(92,148,252,0);
+      background:rgba(6,20,45,0);
       pointer-events:none;
-      transition:background .6s;
+      transition:background .6s ease;
       display:flex;
       align-items:center;
       justify-content:center;
-    `;
-
-    const card = document.createElement('div');
-
-    card.style.cssText = `
-      background:#fff;
-      border-radius:24px;
-      border:5px solid #e8282b;
-      box-shadow:
-        0 0 0 3px #fff,
-        0 0 0 8px #e8282b,
-        0 0 0 11px #fff,
-        0 0 0 15px #ffd700,
-        0 30px 80px rgba(0,0,0,.5);
-      padding:40px 50px;
-      text-align:center;
-      opacity:0;
-      transform:scale(.8) translateY(30px);
-      transition:all .55s cubic-bezier(.34,1.4,.64,1) .15s;
-      pointer-events:auto;
-      max-width:360px;
       font-family:Nunito,sans-serif;
+      overflow:hidden;
     `;
 
-    card.innerHTML = `
-      <div style="font-size:48px;margin-bottom:12px;">🏁</div>
-      <div style="font-size:11px;font-weight:900;letter-spacing:.25em;text-transform:uppercase;color:rgba(0,0,0,.3);margin-bottom:10px;">LEVEL CLEAR</div>
-      <div style="font-size:52px;font-weight:900;color:#e8282b;line-height:1;margin-bottom:6px;letter-spacing:-1px;">8 GHANTE</div>
-      <div style="font-size:14px;font-weight:900;color:rgba(0,0,0,.3);letter-spacing:.2em;text-transform:uppercase;margin-bottom:18px;">COMPLETE</div>
-      <div style="font-size:16px;font-weight:800;font-style:italic;color:rgba(0,0,0,.55);line-height:1.6;margin-bottom:22px;">
-        nikal gayo bhai 🎉<br>
-        castle clear, ghar ja heve<br>
-        keka band kar!
+    overlay.innerHTML = `
+      <div style="
+        position:absolute;
+        inset:0;
+        background:
+          radial-gradient(circle at 20% 18%, rgba(255,214,0,.34), transparent 22%),
+          radial-gradient(circle at 82% 22%, rgba(34,197,94,.26), transparent 24%),
+          radial-gradient(circle at 50% 90%, rgba(232,40,43,.28), transparent 28%),
+          linear-gradient(180deg, rgba(79,143,252,.75), rgba(9,20,46,.88));
+        opacity:.95;
+      "></div>
+
+      <div style="
+        position:absolute;
+        bottom:0;
+        left:0;
+        right:0;
+        height:96px;
+        background:
+          linear-gradient(180deg,#54c759 0,#2f9a44 24px,#c8860a 24px,#c8860a 100%);
+        border-top:5px solid #fff;
+        box-shadow:0 -8px 0 rgba(0,0,0,.18) inset;
+      "></div>
+
+      <div style="
+        position:absolute;
+        bottom:24px;
+        left:0;
+        right:0;
+        height:44px;
+        background:
+          repeating-linear-gradient(90deg,#d4920e 0,#d4920e 34px,#7a5000 34px,#7a5000 37px);
+        opacity:.9;
+      "></div>
+
+      <div style="
+        position:absolute;
+        top:9%;
+        left:9%;
+        font-size:38px;
+        animation:km-star-spin 3s linear infinite;
+        filter:drop-shadow(0 6px 0 rgba(0,0,0,.22));
+      ">⭐</div>
+
+      <div style="
+        position:absolute;
+        top:14%;
+        right:12%;
+        font-size:34px;
+        animation:km-star-spin 3.4s linear infinite reverse;
+        filter:drop-shadow(0 6px 0 rgba(0,0,0,.22));
+      ">⭐</div>
+
+      <div style="
+        position:absolute;
+        bottom:94px;
+        left:11%;
+        width:18px;
+        height:126px;
+        background:#fff;
+        border:4px solid #2f2f2f;
+        border-radius:12px;
+        box-shadow:0 6px 0 rgba(0,0,0,.2);
+      ">
+        <div style="
+          position:absolute;
+          top:8px;
+          left:12px;
+          width:82px;
+          height:48px;
+          background:linear-gradient(135deg,#22c55e,#16a34a);
+          border:4px solid #fff;
+          border-left:none;
+          border-radius:0 12px 12px 0;
+          box-shadow:0 5px 0 rgba(0,0,0,.22);
+          animation:km-flag-wave 1.2s ease-in-out infinite;
+          transform-origin:left center;
+        ">
+          <div style="
+            font-size:22px;
+            line-height:42px;
+            text-align:center;
+            filter:drop-shadow(0 2px 0 rgba(0,0,0,.25));
+          ">🏁</div>
+        </div>
       </div>
-      <div style="font-size:9px;font-weight:900;letter-spacing:.2em;text-transform:uppercase;color:rgba(0,0,0,.2);">tap anywhere to close</div>
+
+      <div style="
+        position:relative;
+        width:min(620px, calc(100vw - 34px));
+        border-radius:34px;
+        padding:8px;
+        background:linear-gradient(135deg,#ffd700,#ff4d4d,#4f8ffc,#22c55e,#ffd700);
+        background-size:300% 300%;
+        animation:km-victory-rainbow 4s ease infinite, km-victory-pop .75s cubic-bezier(.34,1.5,.64,1) forwards;
+        box-shadow:
+          0 0 0 5px rgba(255,255,255,.95),
+          0 26px 90px rgba(0,0,0,.48);
+      ">
+        <div style="
+          position:relative;
+          overflow:hidden;
+          border-radius:27px;
+          padding:28px 26px 24px;
+          background:
+            radial-gradient(circle at 50% 0%, rgba(255,255,255,.95), rgba(255,255,255,.78) 28%, rgba(255,255,255,.92) 100%);
+          border:4px solid rgba(255,255,255,.95);
+          text-align:center;
+        ">
+          <div style="
+            position:absolute;
+            inset:0;
+            background:
+              linear-gradient(90deg, transparent, rgba(255,255,255,.65), transparent);
+            width:42%;
+            transform:translateX(-130%) rotate(22deg);
+            animation:km-medal-shine 2.6s ease-in-out infinite;
+            pointer-events:none;
+          "></div>
+
+          <div style="
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            width:92px;
+            height:92px;
+            border-radius:50%;
+            background:
+              radial-gradient(circle at 35% 28%,#fffde7,#ffd600 42%,#c67c00 78%,#7a4500 100%);
+            border:6px solid #fff;
+            box-shadow:0 8px 0 rgba(0,0,0,.24),0 0 0 5px #e8282b;
+            font-size:48px;
+            margin-bottom:14px;
+            position:relative;
+          ">🏆</div>
+
+          <div style="
+            font-size:13px;
+            font-weight:900;
+            letter-spacing:.28em;
+            text-transform:uppercase;
+            color:#e8282b;
+            margin-bottom:7px;
+          ">World Clear</div>
+
+          <div style="
+            font-size:46px;
+            line-height:.96;
+            font-weight:900;
+            color:#1a237e;
+            text-shadow:
+              3px 3px 0 #fff,
+              5px 5px 0 rgba(232,40,43,.22);
+            letter-spacing:-1px;
+            margin-bottom:12px;
+          ">8 HOURS<br>ACHIEVED</div>
+
+          <div style="
+            display:inline-flex;
+            gap:8px;
+            align-items:center;
+            justify-content:center;
+            padding:9px 15px;
+            border-radius:999px;
+            background:#1a237e;
+            color:#fff;
+            font-size:13px;
+            font-weight:900;
+            box-shadow:0 5px 0 rgba(0,0,0,.25);
+            margin-bottom:16px;
+          ">
+            <span style="font-size:18px;">🚪</span>
+            <span>Majdoori khatam. Ghar ja bhai.</span>
+          </div>
+
+          <div style="
+            display:grid;
+            grid-template-columns:repeat(3,1fr);
+            gap:10px;
+            margin:0 auto 14px;
+            max-width:420px;
+          ">
+            <div style="
+              background:#1565c0;
+              border:3px solid #fff;
+              border-radius:18px;
+              padding:10px 8px;
+              box-shadow:0 5px 0 rgba(0,0,0,.22);
+            ">
+              <div style="font-size:20px;margin-bottom:4px;">🪙</div>
+              <div style="font-size:9px;font-weight:900;letter-spacing:.16em;color:rgba(255,255,255,.62);">COINS</div>
+              <div style="font-size:16px;font-weight:900;color:#fff;">FULL</div>
+            </div>
+
+            <div style="
+              background:#22c55e;
+              border:3px solid #fff;
+              border-radius:18px;
+              padding:10px 8px;
+              box-shadow:0 5px 0 rgba(0,0,0,.22);
+            ">
+              <div style="font-size:20px;margin-bottom:4px;">🏁</div>
+              <div style="font-size:9px;font-weight:900;letter-spacing:.16em;color:rgba(255,255,255,.7);">FLAG</div>
+              <div style="font-size:16px;font-weight:900;color:#fff;">CLEAR</div>
+            </div>
+
+            <div style="
+              background:#f9a825;
+              border:3px solid #fff;
+              border-radius:18px;
+              padding:10px 8px;
+              box-shadow:0 5px 0 rgba(0,0,0,.22);
+            ">
+              <div style="font-size:20px;margin-bottom:4px;">🍵</div>
+              <div style="font-size:9px;font-weight:900;letter-spacing:.16em;color:rgba(100,50,0,.65);">REWARD</div>
+              <div style="font-size:16px;font-weight:900;color:#5d2e00;">CHAI</div>
+            </div>
+          </div>
+
+          <div style="
+            font-size:12px;
+            font-weight:800;
+            font-style:italic;
+            color:rgba(26,35,126,.52);
+          ">"nikal gayo bhai… the realm is yours."</div>
+        </div>
+      </div>
     `;
 
-    overlay.appendChild(card);
     document.body.appendChild(overlay);
 
-    setTimeout(() => {
-      overlay.style.background = 'rgba(92,148,252,.75)';
-      card.style.opacity = '1';
-      card.style.transform = 'scale(1) translateY(0)';
-    }, 80);
-
-    overlay.addEventListener('click', () => {
-      overlay.style.background = 'rgba(92,148,252,0)';
-      card.style.opacity = '0';
-      card.style.transform = 'scale(.9) translateY(20px)';
-      setTimeout(() => overlay.remove(), 500);
+    requestAnimationFrame(() => {
+      overlay.style.background = 'rgba(6,20,45,.42)';
     });
+
+    setTimeout(() => {
+      overlay.style.background = 'rgba(6,20,45,0)';
+      overlay.style.opacity = '0';
+      overlay.style.transition = 'opacity .7s ease, background .7s ease';
+      setTimeout(() => overlay.remove(), 800);
+    }, 8500);
   }
 
-  function applyVictoryTheme() {
-    const widget = document.getElementById('kekaMario');
-    if (widget) widget.style.animation = 'km-victory 3s ease-in-out infinite';
-
-    const panel = document.getElementById('kmPanel');
-    if (panel) panel.style.background = 'linear-gradient(180deg,#ffd54f,#f9a825)';
-
-    buildCoins(100);
-
-    const pct = document.getElementById('kmPct');
-    if (pct) {
-      pct.textContent = '100%';
-      pct.style.color = '#7a4800';
-    }
-
-    const left = document.getElementById('kmLeft');
-    if (left) {
-      left.textContent = '0h 00m';
-      left.style.color = '#fff';
-    }
-
-    const progress = document.getElementById('kmProgress');
-    if (progress) progress.style.width = '100%';
-
-    const ticker = document.getElementById('kmTicker');
-    if (ticker) {
-      ticker.style.color = 'rgba(100,50,0,.55)';
-      ticker.textContent = 'LEVEL CLEAR ★ CASTLE VICTORY ★ CHUTTI PAKKI HAI ★ GHAR JA BHAI ★ LAPTOP BAND KAR ★';
-    }
-
-    const vibe = document.getElementById('kmVibe');
-    if (vibe) vibe.textContent = '"flagpole clear… the realm is yours. ghar ja."';
-  }
-
-  function requestNotification() {
-    if (!('Notification' in window)) return;
-
-    if (Notification.permission === 'default') {
-      setTimeout(() => Notification.requestPermission(), 3000);
-    }
-  }
-
-  function fireNotification() {
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
-
-    try {
-      const n = new Notification('🏁 Level Clear — 8 Ghante Pure!', {
-        body: 'Ab punchout ka time aa gaya bhai — Cursor band kar.',
-        tag: 'keka-8hr',
-        requireInteraction: true
-      });
-
-      n.onclick = () => {
-        window.focus();
-        n.close();
-      };
-    } catch (e) {}
-  }
-
-  function startTitleFlash() {
-    if (titleFlashInterval) return;
-
-    let t = false;
+  function flashTitle() {
+    let flip = false;
 
     titleFlashInterval = setInterval(() => {
-      document.title = t
-        ? '🏁 Level Clear! Ghar Ja!'
-        : '✅ 8hrs Done — Nikal Bhai!';
-      t = !t;
-    }, 1300);
+      flip = !flip;
+      document.title = flip ? '🏆 8 HOURS DONE!' : originalTitle;
+    }, 900);
+
+    setTimeout(() => {
+      clearInterval(titleFlashInterval);
+      document.title = originalTitle;
+    }, 12000);
+  }
+
+  function celebrateEightHours() {
+    if (eightHourTriggered) return;
+
+    eightHourTriggered = true;
+
+    const widget = document.getElementById('kekaMario');
+    if (widget) {
+      widget.style.animation =
+        'km-victory 1.5s ease-in-out infinite, km-soft-glow 3s ease-in-out infinite';
+      widget.style.background = '#ffd700';
+    }
+
+    launchConfetti();
+    launchVictoryOverlay();
+    flashTitle();
+    showToast('🏆', '8 HOURS ACHIEVED', 'nikal gayo bhai… ghar ja.', '#e8282b');
+  }
+
+  function warnTenMinutes(left) {
+    if (tenMinTriggered) return;
+
+    tenMinTriggered = true;
+
+    const widget = document.getElementById('kekaMario');
+    if (widget) {
+      widget.style.animation =
+        'km-warn 1.2s ease-in-out infinite, km-soft-glow 3s ease-in-out infinite';
+    }
+
+    showToast('⚠️', `${left} MIN LEFT`, 'final castle… bas thoda sa aur.', '#f9a825');
+
+    setTimeout(() => {
+      const w = document.getElementById('kekaMario');
+      if (w && !eightHourTriggered) {
+        w.style.animation = 'km-soft-glow 4s ease-in-out infinite';
+      }
+    }, 7000);
   }
 
   function updateUI() {
-    const data = window.KekaHoursLatest;
-    if (!data) return;
-
-    const { totalMinutes, breakMinutes, firstStart } = data;
-
-    const remaining = WORK_MINUTES - totalMinutes;
-    const pct = Math.min(100, (totalMinutes / WORK_MINUTES) * 100);
-
-    const H = Math.floor(totalMinutes / 60);
-    const M = totalMinutes % 60;
-
-    const set = (id, v) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = v;
+    const data = window.KekaHoursLatest || {
+      totalMinutes: 0,
+      breakMinutes: 0,
+      firstStart: null
     };
 
-    set('kmHours', H);
-    set('kmMins', String(M).padStart(2, '0'));
-    set('kmWorked', `${H}h ${String(M).padStart(2, '0')}m`);
+    const total = Math.max(0, data.totalMinutes || 0);
+    const breaks = Math.max(0, data.breakMinutes || 0);
+    const left = Math.max(0, WORK_MINUTES - total);
+    const pct = Math.min(100, Math.round((total / WORK_MINUTES) * 100));
 
-    if (!eightHourTriggered) {
-      set(
-        'kmLeft',
-        `${Math.floor(Math.max(0, remaining) / 60)}h ${String(Math.max(0, remaining) % 60).padStart(2, '0')}m`
-      );
-    }
+    const h = Math.floor(total / 60);
+    const m = total % 60;
 
-    set(
-      'kmBreak',
-      `${Math.floor(breakMinutes / 60)}h ${String(breakMinutes % 60).padStart(2, '0')}m`
-    );
+    const kmHours = document.getElementById('kmHours');
+    const kmMins = document.getElementById('kmMins');
+    const kmWorked = document.getElementById('kmWorked');
+    const kmLeft = document.getElementById('kmLeft');
+    const kmBreak = document.getElementById('kmBreak');
+    const kmPct = document.getElementById('kmPct');
+    const kmProgress = document.getElementById('kmProgress');
+    const kmVibe = document.getElementById('kmVibe');
 
-    if (!eightHourTriggered) {
-      buildCoins(Math.floor(pct));
-      set('kmPct', Math.floor(pct) + '%');
+    if (kmHours) kmHours.textContent = h;
+    if (kmMins) kmMins.textContent = String(m).padStart(2, '0');
+    if (kmWorked) kmWorked.textContent = `${h}h ${String(m).padStart(2, '0')}m`;
+    if (kmLeft) kmLeft.textContent = `${Math.floor(left / 60)}h ${String(left % 60).padStart(2, '0')}m`;
+    if (kmBreak) kmBreak.textContent = `${Math.floor(breaks / 60)}h ${String(breaks % 60).padStart(2, '0')}m`;
+    if (kmPct) kmPct.textContent = `${pct}%`;
+    if (kmProgress) kmProgress.style.width = `${pct}%`;
+    if (kmVibe) kmVibe.textContent = getVibe(pct);
 
-      const progress = document.getElementById('kmProgress');
-      if (progress) progress.style.width = Math.floor(pct) + '%';
+    buildCoins(pct);
 
-      const vibe = document.getElementById('kmVibe');
-      if (vibe) vibe.textContent = getVibe(pct);
-    }
-
-    if (firstStart) {
-      const st = parseTime(firstStart);
-
+    if (data.firstStart) {
+      const st = parseTime(data.firstStart);
       if (st) {
-        const base = new Date();
-        base.setHours(st.hours, st.minutes, 0, 0);
+        const start = new Date();
+        start.setHours(st.hours, st.minutes, 0, 0);
 
-        set(
-          'kmHalf',
-          fmtTime(new Date(base.getTime() + (HALF_DAY_MINUTES + breakMinutes) * 60000))
-        );
+        const half = new Date(start.getTime() + (HALF_DAY_MINUTES + breaks) * 60000);
+        const full = new Date(start.getTime() + (WORK_MINUTES + breaks) * 60000);
 
-        if (!eightHourTriggered) {
-          set(
-            'kmFull',
-            fmtTime(new Date(base.getTime() + (WORK_MINUTES + breakMinutes) * 60000))
-          );
-        }
+        const kmHalf = document.getElementById('kmHalf');
+        const kmFull = document.getElementById('kmFull');
+
+        if (kmHalf) kmHalf.textContent = fmtTime(half);
+        if (kmFull) kmFull.textContent = fmtTime(full);
       }
     }
 
-    const widget = document.getElementById('kekaMario');
-
-    if (widget && remaining <= 30 && remaining > 0 && !eightHourTriggered) {
-      widget.style.animation = 'km-warn 2s ease-in-out infinite';
-    }
-
-    if (remaining <= 10 && remaining > 0 && !tenMinTriggered) {
-      tenMinTriggered = true;
-      showToast(
-        '⏳',
-        'SIRF 10 MINUTE',
-        'bas thodi der aur, fir majdoori si azaadi…',
-        '#e65100'
-      );
-    }
-
-    if (totalMinutes >= WORK_MINUTES && !eightHourTriggered) {
-      eightHourTriggered = true;
-      launchConfetti();
-      launchVictoryOverlay();
-      applyVictoryTheme();
-      fireNotification();
-      startTitleFlash();
-      showToast(
-        '🏁',
-        'LEVEL CLEAR',
-        '8 ghante pure — nikal jaa meri jaan',
-        '#ffd700'
-      );
-    }
+    if (left <= 10 && left > 0) warnTenMinutes(left);
+    if (total >= WORK_MINUTES) celebrateEightHours();
   }
 
-  function findLogs() {
-    return document.querySelector('[formarrayname="logs"],[formArrayName="logs"]');
-  }
-
-  const observer = new MutationObserver(() => {
-    const c = findLogs();
-    if (c) processLogs(c);
-  });
-
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
-
-  createUI();
-  requestNotification();
-
-  setInterval(() => {
-    const c = findLogs();
-    if (c) processLogs(c);
+  function scan() {
+    const containers = document.querySelectorAll('attendance-logs, .attendance-logs, body');
+    containers.forEach(processLogs);
     updateUI();
-  }, 1000);
+  }
+
+  function boot() {
+    createUI();
+    scan();
+
+    setInterval(scan, 15000);
+
+    const obs = new MutationObserver(() => {
+      scan();
+    });
+
+    obs.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
 })();
