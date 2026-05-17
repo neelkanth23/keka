@@ -1,421 +1,52 @@
 // ╔══════════════════════════════════════════════════════════╗
-// ║ KEKA GRIND TRACKER — MULTI THEME EDITION                ║
-// ║ Themes: Mario / Pokemon / Batman / Vice City            ║
-// ║ Paste all 3 parts together, then run on Keka page        ║
+// ║   KEKA GRIND TRACKER — MARIO EDITION POLISHED           ║
+// ║   Paste in browser console on your Keka attendance page  ║
 // ╚══════════════════════════════════════════════════════════╝
-
 (function () {
   'use strict';
 
-  /* ═══════════════════════════════════════
-     CONFIG
-  ═══════════════════════════════════════ */
   const WORK_MINUTES = 8 * 60;
   const HALF_DAY_MINUTES = 4 * 60;
 
-  /*
-    THEME ROTATION:
-    Day 1 -> Mario
-    Day 2 -> Pokemon
-    Day 3 -> Batman
-    Day 4 -> Vice City
-    Day 5 -> Mario again
-
-    Manual testing:
-    Add ?kekaTheme=mario
-    Add ?kekaTheme=pokemon
-    Add ?kekaTheme=batman
-    Add ?kekaTheme=vice
-  */
-  const THEME_ORDER = ['mario', 'pokemon', 'batman', 'vice'];
-
-  /*
-    IMAGE / GIF / RESOURCE ASSETS
-
-    IMPORTANT:
-    - Keep only image/audio/font URLs here.
-    - Do NOT add external JavaScript URLs.
-    - Prefer your own GitHub repo raw URLs.
-    - You can replace these empty strings with your own URLs.
-
-    Recommended formats:
-    https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/assets/...
-    or
-    https://YOUR_USER.github.io/YOUR_REPO/assets/...
-
-    Example:
-    logo: 'https://raw.githubusercontent.com/neelansh/keka-themes/main/assets/batman/logo.png'
-  */
-  const ASSETS = {
-    mario: {
-      // Main characters
-      mario: '',
-      luigi: '',
-      bowser: '',
-      peach: '',
-      goomba: '',
-
-      // Background / props
-      bg: '',
-      pipe: '',
-      block: '',
-      coin: '',
-      star: '',
-      castle: '',
-
-      // Optional animated resources
-      coinGif: '',
-      victoryGif: ''
-    },
-
-    pokemon: {
-      // Main characters
-      pikachu: '',
-      charizard: '',
-      gengar: '',
-      trainer: '',
-
-      // Props / UI
-      pokeball: '',
-      greatball: '',
-      badge: '',
-      potion: '',
-
-      // Backgrounds
-      bg: '',
-      grass: '',
-      arena: '',
-
-      // Optional animated resources
-      captureGif: '',
-      victoryGif: ''
-    },
-
-    batman: {
-      // Main Batman resources
-      logo: '',
-      batman: '',
-      batSignal: '',
-      batsGif: '',
-
-      // Backgrounds
-      gotham: '',
-      cave: '',
-      rain: '',
-      moon: '',
-
-      // Props
-      batarang: '',
-      jokerCard: '',
-      arkhamLogo: '',
-
-      // Optional animated resources
-      smokeGif: '',
-      lightningGif: ''
-    },
-
-    vice: {
-      // Main Vice City resources
-      logo: '',
-      tommy: '',
-      car: '',
-      palm: '',
-
-      // Backgrounds
-      bg: '',
-      sky: '',
-      neonGrid: '',
-      oceanDrive: '',
-
-      // Props
-      cassette: '',
-      sunglasses: '',
-      neonSign: '',
-
-      // Optional animated resources
-      sunsetGif: '',
-      neonGif: ''
-    }
-  };
-
-  /*
-    WHERE PNG/GIF WILL BE USED
-
-    MARIO:
-    - ASSETS.mario.mario      -> replaces canvas Mario if provided
-    - ASSETS.mario.luigi      -> left-side Luigi
-    - ASSETS.mario.bowser     -> right-side Bowser
-    - ASSETS.mario.peach      -> Princess Peach
-    - ASSETS.mario.goomba     -> enemy on ground
-    - ASSETS.mario.bg         -> Mario world background
-    - ASSETS.mario.coin       -> coin row icon
-    - ASSETS.mario.star       -> victory star
-
-    POKEMON:
-    - ASSETS.pokemon.pikachu  -> right-side Pikachu
-    - ASSETS.pokemon.trainer  -> left-side trainer
-    - ASSETS.pokemon.pokeball -> center Pokeball
-    - ASSETS.pokemon.bg       -> Pokemon background
-    - ASSETS.pokemon.badge    -> 100% completion badge
-
-    BATMAN:
-    - ASSETS.batman.logo      -> real Batman logo
-    - ASSETS.batman.batman    -> Batman silhouette/body
-    - ASSETS.batman.batsGif   -> bats coming out of cave animation
-    - ASSETS.batman.gotham    -> Gotham skyline
-    - ASSETS.batman.cave      -> Batcave background
-    - ASSETS.batman.batSignal -> Bat signal
-    - ASSETS.batman.rain      -> rain overlay if you use transparent GIF/PNG
-
-    VICE CITY:
-    - ASSETS.vice.logo        -> Vice City logo
-    - ASSETS.vice.tommy       -> Tommy Vercetti
-    - ASSETS.vice.car         -> car asset
-    - ASSETS.vice.palm        -> palm tree
-    - ASSETS.vice.bg          -> main Vice City background
-    - ASSETS.vice.sky         -> sunset sky
-    - ASSETS.vice.neonGrid    -> neon grid overlay
-  */
-
-  /* ═══════════════════════════════════════
-     STATE
-  ═══════════════════════════════════════ */
   let tenMinTriggered = false;
   let eightHourTriggered = false;
   let confettiInterval = null;
   let titleFlashInterval = null;
   let didSlideIn = false;
-  let minimized = false;
   const originalTitle = document.title;
 
-  /* ═══════════════════════════════════════
-     THEME HELPERS
-  ═══════════════════════════════════════ */
-  function getDayOfYear() {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 0);
-    const diff = now - start;
-    return Math.floor(diff / 86400000);
-  }
-
-  function getThemeFromURL() {
-    try {
-      const p = new URLSearchParams(window.location.search);
-      const forced = (p.get('kekaTheme') || '').toLowerCase().trim();
-      if (THEME_ORDER.includes(forced)) return forced;
-    } catch (e) {}
-    return null;
-  }
-
-  function getTodayTheme() {
-    const forced = getThemeFromURL();
-    if (forced) return forced;
-
-    const day = getDayOfYear();
-    return THEME_ORDER[(day - 1) % THEME_ORDER.length];
-  }
-
-  const CURRENT_THEME = getTodayTheme();
-
-  const THEME_META = {
-    mario: {
-      name: 'MARIO WORLD',
-      subtitle: 'The Eternal Session',
-      accent: '#e8282b',
-      accent2: '#ffd700',
-      dark: '#1a237e',
-      panel: '#e8282b',
-      glassText: '#1a237e',
-      worked: 'linear-gradient(155deg,#1565c0,#0d47a1)',
-      left: 'linear-gradient(155deg,#e65100,#bf360c)',
-      brk: 'linear-gradient(155deg,#2e7d32,#1b5e20)',
-      half: '#f9a825',
-      full: '#1e88e5',
-      worldBg:
-        'linear-gradient(180deg,#5c94fc 0%,#7fb4ff 60%,#a8d0ff 100%)',
-      ticker:
-        'CHAI PIVI CHE KE NHI ★ BOSS NE KHABAR NATHI ★ GHAR JA BHAI ★ SURAT NO SHER ★ KEKA BAND KAR ★ PAKODA TIME ★ CHAI PIVI CHE KE NHI ★',
-      doneTicker:
-        'VICTORY ★ CHUTTI PAKKI HAI ★ GHAR JA BHAI ★ LAPTOP BAND KAR ★ SURAT NO SHER JEETI GAYO ★ NIKAL BHAI ★',
-      victoryTitle: '8 GHANTE COMPLETE',
-      victoryLine: 'nikal gayo bhai 🎉',
-      doneVibe: '"Ghr bhega thao… the realm is yours. ghar ja."'
-    },
-
-    pokemon: {
-      name: 'POKEMON SHIFT',
-      subtitle: 'Catch the Work Hours',
-      accent: '#ef4444',
-      accent2: '#ffcb05',
-      dark: '#1d3557',
-      panel: '#2563eb',
-      glassText: '#1d3557',
-      worked: 'linear-gradient(155deg,#2563eb,#1e3a8a)',
-      left: 'linear-gradient(155deg,#f97316,#c2410c)',
-      brk: 'linear-gradient(155deg,#16a34a,#166534)',
-      half: '#ffcb05',
-      full: '#ef4444',
-      worldBg:
-        'linear-gradient(180deg,#8ec5ff 0%,#d7fbe8 55%,#7bd66f 100%)',
-      ticker:
-        'WILD TASK APPEARED ★ USE FOCUS ATTACK ★ COFFEE POTION READY ★ GOTTA FINISH EM ALL ★ OFFICE GYM LEADER WAITING ★',
-      doneTicker:
-        'BADGE EARNED ★ 8 HOURS CAPTURED ★ RUN FROM OFFICE ★ POKECENTER HOME READY ★',
-      victoryTitle: 'BADGE EARNED',
-      victoryLine: '8 hours captured successfully ⚡',
-      doneVibe: '"badge mil gaya… ab ghar ja trainer."'
-    },
-
-    batman: {
-      name: 'GOTHAM WATCH',
-      subtitle: 'Arkham Night Shift',
-      accent: '#111827',
-      accent2: '#facc15',
-      dark: '#fef3c7',
-      panel: '#050505',
-      glassText: '#fef3c7',
-      worked: 'linear-gradient(155deg,#111827,#020617)',
-      left: 'linear-gradient(155deg,#78350f,#451a03)',
-      brk: 'linear-gradient(155deg,#374151,#111827)',
-      half: '#facc15',
-      full: '#111827',
-      worldBg:
-        'radial-gradient(circle at 70% 18%,rgba(250,204,21,.35),transparent 14%),linear-gradient(180deg,#020617 0%,#030712 55%,#000 100%)',
-      ticker:
-        'GOTHAM IS WATCHING ★ SIGNAL ACTIVE ★ ONE MORE CASE FILE ★ THE NIGHT IS LONG ★ BATCAVE AWAITS ★',
-      doneTicker:
-        'MISSION COMPLETE ★ RETURN TO BATCAVE ★ GOTHAM SURVIVED ★ VANISH INTO THE NIGHT ★',
-      victoryTitle: 'MISSION COMPLETE',
-      victoryLine: 'Gotham survived another shift 🦇',
-      doneVibe: '"mission complete… return to the cave."'
-    },
-
-    vice: {
-      name: 'VICE SHIFT',
-      subtitle: 'Neon Attendance Run',
-      accent: '#ec4899',
-      accent2: '#22d3ee',
-      dark: '#ffffff',
-      panel: '#111827',
-      glassText: '#ffffff',
-      worked: 'linear-gradient(155deg,#06b6d4,#0e7490)',
-      left: 'linear-gradient(155deg,#ec4899,#9d174d)',
-      brk: 'linear-gradient(155deg,#7c3aed,#4c1d95)',
-      half: '#22d3ee',
-      full: '#ec4899',
-      worldBg:
-        'linear-gradient(180deg,#2b1055 0%,#ec4899 45%,#f97316 100%)',
-      ticker:
-        'NEON LIGHTS ON ★ OCEAN DRIVE CALLING ★ FINISH THE SHIFT ★ NIGHT CITY MODE ★ LOGOUT SOON ★',
-      doneTicker:
-        'SHIFT COMPLETE ★ NEON NIGHT UNLOCKED ★ LOG OUT AND DRIVE HOME ★ VICE MODE COMPLETE ★',
-      victoryTitle: 'SHIFT COMPLETE',
-      victoryLine: 'Neon night unlocked 🌴',
-      doneVibe: '"vice mode complete… ab logout kar."'
-    }
-  };
-
-  const T = THEME_META[CURRENT_THEME] || THEME_META.mario;
-
-  /* ═══════════════════════════════════════
-     ASSET HELPERS
-  ═══════════════════════════════════════ */
-  function safeAsset(src) {
-    if (!src || typeof src !== 'string') return '';
-
-    const trimmed = src.trim();
-
-    if (!trimmed) return '';
-
-    // Only allow http/https images from trusted-style URLs.
-    // This blocks javascript:, data:, blob:, file:, etc.
-    if (!/^https:\/\//i.test(trimmed)) return '';
-
-    return trimmed;
-  }
-
-  function assetImg(src, style, alt, className) {
-    const safe = safeAsset(src);
-    if (!safe) return '';
-
-    return `
-      <img
-        src="${safe}"
-        alt="${alt || ''}"
-        class="${className || ''}"
-        referrerpolicy="no-referrer"
-        loading="eager"
-        decoding="async"
-        draggable="false"
-        style="${style || ''}"
-      />
-    `;
-  }
-
-  function bgAssetStyle(src) {
-    const safe = safeAsset(src);
-    if (!safe) return '';
-    return `background-image:url('${safe}');background-size:cover;background-position:center;background-repeat:no-repeat;`;
-  }
-
-  /* ═══════════════════════════════════════
-     TIME HELPERS
-  ═══════════════════════════════════════ */
   function parseTime(ts) {
     if (!ts || ts === 'MISSING') return null;
-
     const parts = ts.toLowerCase().split(' ').filter(Boolean);
     if (parts.length < 2) return null;
-
     let [H, M] = parts[0].split(':').map(Number);
     const ap = parts[1];
-
-    if (Number.isNaN(H) || Number.isNaN(M)) return null;
-
     if (ap === 'pm' && H !== 12) H += 12;
     if (ap === 'am' && H === 12) H = 0;
-
     return { hours: H, minutes: M };
   }
 
   function minutesBetween(s, e) {
-    const st = parseTime(s);
-    const en = parseTime(e);
-
+    const st = parseTime(s), en = parseTime(e);
     if (!st || !en) return 0;
-
     let m = (en.hours - st.hours) * 60 + (en.minutes - st.minutes);
-
     if (m < 0) m += 1440;
     if (m > 720) m = 0;
-
     return m;
   }
 
   function fmtTime(d) {
-    return d
-      .toLocaleTimeString('en-IN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      })
-      .toUpperCase();
+    return d.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    }).toUpperCase();
   }
 
-  function fmtHM(mins) {
-    const safe = Math.max(0, mins || 0);
-    return `${Math.floor(safe / 60)}h ${String(safe % 60).padStart(2, '0')}m`;
-  }
-
-  /* ═══════════════════════════════════════
-     KEKA LOG PROCESSING
-  ═══════════════════════════════════════ */
   function processLogs(container) {
     if (!container) return;
 
-    const rows = Array.from(
-      container.querySelectorAll('.ng-untouched.ng-pristine.ng-valid')
-    );
+    const rows = Array.from(container.querySelectorAll('.ng-untouched.ng-pristine.ng-valid'));
 
     let totalM = 0;
     let firstStart = null;
@@ -451,14 +82,13 @@
 
     if (activeStart) {
       const st = parseTime(activeStart);
-
       if (st) {
         const now = new Date();
         const live =
           (now.getHours() - st.hours) * 60 +
           (now.getMinutes() - st.minutes);
 
-        if (live > 0 && live < 720) totalM += live;
+        if (live > 0) totalM += live;
       }
     }
 
@@ -469,84 +99,79 @@
     };
   }
 
-  /* ═══════════════════════════════════════
-     VIBE MESSAGES
-  ═══════════════════════════════════════ */
   function getVibe(pct) {
-    if (pct >= 100) return T.doneVibe || '"done… ghar ja."';
-
-    if (CURRENT_THEME === 'pokemon') {
-      if (pct >= 90) return '"final badge close hai… don’t faint now."';
-      if (pct >= 75) return '"elite four stage… bas thoda aur."';
-      if (pct >= 50) return '"half HP done… keep battling."';
-      if (pct >= 25) return '"first badge secured… continue trainer."';
-      return '"wild task appeared… choose focus."';
-    }
-
-    if (CURRENT_THEME === 'batman') {
-      if (pct >= 90) return '"last case file… Gotham almost sleeps."';
-      if (pct >= 75) return '"signal strong… hold the night."';
-      if (pct >= 50) return '"half patrol done… no weakness."';
-      if (pct >= 25) return '"streets are active… keep moving."';
-      return '"the night has started… become the shadow."';
-    }
-
-    if (CURRENT_THEME === 'vice') {
-      if (pct >= 90) return '"last neon mile… logout close."';
-      if (pct >= 75) return '"Ocean Drive calling… hold the vibe."';
-      if (pct >= 50) return '"half shift crossed… neon still burning."';
-      if (pct >= 25) return '"engine warm… keep cruising."';
-      return '"shift started… neon grind begins."';
-    }
-
-    if (pct >= 90) return '"10% remains… do not falter now, warrior."';
+    if (pct >= 100) return '"nikal gayo bhai… the realm is yours. ghar ja."';
+    if (pct >= 90) return '"final castle… bas thoda sa aur."';
     if (pct >= 75) return '"ghar dikhne laga hai… hold the line."';
-    if (pct >= 50) return '"aadha done… the grind is not over."';
-    if (pct >= 25) return '"chautha part khatam… keep moving."';
+    if (pct >= 50) return '"aadha done… grind ka boss fight baaki hai."';
+    if (pct >= 25) return '"coins collect ho rahe hain… keep moving."';
     return '"kaam shuru kar… the grind demands tribute."';
   }
-    /* ═══════════════════════════════════════
-     STYLE INJECTION
-  ═══════════════════════════════════════ */
+
   function injectStyles() {
-    if (document.getElementById('kekaMultiThemeStyles')) return;
+    if (document.getElementById('kekaMarioStyles')) return;
 
     const style = document.createElement('style');
-    style.id = 'kekaMultiThemeStyles';
+    style.id = 'kekaMarioStyles';
 
     style.textContent = `
-      @import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,800;0,900;1,800&family=Orbitron:wght@700;900&family=Bebas+Neue&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,800;0,900;1,800&display=swap');
 
-      #kekaMultiTheme,
-      #kekaMultiTheme * {
+      #kekaMario * {
         box-sizing: border-box;
         margin: 0;
         padding: 0;
-        user-select: none;
-      }
-
-      #kekaMultiTheme {
         font-family: 'Nunito', sans-serif;
       }
 
-      #kekaMultiTheme img {
-        pointer-events: none;
-        user-select: none;
-      }
-
       @keyframes km-slidein {
-        from { transform: translateX(115%); opacity: 0; }
-        to   { transform: translateX(0); opacity: 1; }
+        from {
+          transform: translateX(120%) scale(.96);
+          opacity: 0;
+          filter: blur(4px);
+        }
+        to {
+          transform: translateX(0) scale(1);
+          opacity: 1;
+          filter: blur(0);
+        }
       }
 
-      @keyframes km-twinkle {
-        0%,100% { opacity: .9; transform: scale(1); }
-        50% { opacity: .25; transform: scale(.6); }
+      @keyframes km-float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-3px); }
+      }
+
+      @keyframes km-mrun {
+        0% { left: -44px; bottom: 56px; }
+        30% { left: 118px; bottom: 56px; }
+        37% { left: 142px; bottom: 92px; }
+        44% { left: 166px; bottom: 56px; }
+        62% { left: 242px; bottom: 56px; }
+        69% { left: 268px; bottom: 90px; }
+        76% { left: 294px; bottom: 56px; }
+        100% { left: 420px; bottom: 56px; }
+      }
+
+      @keyframes km-gwalk {
+        0% { left: 420px; }
+        100% { left: -44px; }
+      }
+
+      @keyframes km-qbob {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-7px); }
       }
 
       @keyframes km-ld {
-        0%,100% { opacity: 1; }
-        50% { opacity: .28; }
+        0%, 100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: .35;
+          transform: scale(.75);
+        }
       }
 
       @keyframes km-ticker {
@@ -554,230 +179,159 @@
         100% { transform: translateX(-50%); }
       }
 
+      @keyframes km-twinkle {
+        0%, 100% {
+          opacity: .95;
+          transform: scale(1);
+        }
+        50% {
+          opacity: .25;
+          transform: scale(.55);
+        }
+      }
+
+      @keyframes km-shine {
+        0% { transform: translateX(-140%) rotate(18deg); }
+        100% { transform: translateX(180%) rotate(18deg); }
+      }
+
+      @keyframes km-coin-pop {
+        0% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-3px) scale(1.08); }
+        100% { transform: translateY(0) scale(1); }
+      }
+
+      @keyframes km-progress-stripe {
+        from { background-position: 0 0; }
+        to { background-position: 34px 0; }
+      }
+
+      @keyframes km-cloud {
+        from { transform: translateX(-20px); }
+        to { transform: translateX(20px); }
+      }
+
       @keyframes km-confetti {
-        0% { transform: translateY(-16px) rotate(0deg); opacity: 1; }
-        100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        0% {
+          transform: translateY(-16px) rotate(0deg);
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(100vh) rotate(720deg);
+          opacity: 0;
+        }
       }
 
       @keyframes km-warn {
-        0%,100% {
+        0%, 100% {
           box-shadow:
             0 0 0 4px #fff,
-            0 0 0 8px ${T.accent},
+            0 0 0 8px #e8282b,
             0 0 0 12px #fff,
-            0 24px 60px rgba(0,0,0,.4);
+            0 24px 60px rgba(0,0,0,.42);
         }
         50% {
           box-shadow:
             0 0 0 4px #fff,
-            0 0 0 8px ${T.accent2},
+            0 0 0 8px #ffb000,
             0 0 0 12px #fff,
-            0 24px 70px rgba(255,215,0,.35);
+            0 24px 75px rgba(255,176,0,.38);
         }
       }
 
       @keyframes km-victory {
-        0%,100% {
+        0%, 100% {
           box-shadow:
             0 0 0 4px #fff,
-            0 0 0 8px ${T.accent2},
+            0 0 0 8px #ffd700,
             0 0 0 12px #fff,
-            0 24px 60px rgba(0,0,0,.45);
+            0 24px 70px rgba(0,0,0,.42);
         }
         50% {
           box-shadow:
             0 0 0 4px #fff,
-            0 0 0 8px ${T.accent2},
+            0 0 0 8px #ffd700,
             0 0 0 12px #fff,
-            0 24px 90px rgba(255,215,0,.45);
+            0 24px 90px rgba(255,215,0,.5);
         }
       }
 
-      @keyframes km-float {
-        0%,100% { transform: translateY(0); }
-        50% { transform: translateY(-8px); }
+      @keyframes km-luigi-idle {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-4px); }
       }
 
-      @keyframes km-pulse {
-        0%,100% { transform: scale(1); filter: brightness(1); }
-        50% { transform: scale(1.04); filter: brightness(1.12); }
+      @keyframes km-bowser-breathe {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-2px) scale(1.03); }
       }
 
-      @keyframes km-batfly {
-        0% {
-          opacity: 0;
-          transform: translate(0,0) scale(.35) rotate(0deg);
-        }
-        15% { opacity: 1; }
-        100% {
-          opacity: 0;
-          transform: translate(var(--x), var(--y)) scale(1.1) rotate(28deg);
-        }
+      @keyframes km-peach-wave {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        50% { transform: translateY(-2px) rotate(2deg); }
       }
 
-      @keyframes km-rain {
-        0% { transform: translateY(-40px); }
-        100% { transform: translateY(40px); }
-      }
-
-      @keyframes km-neon {
-        0%,100% {
-          text-shadow:
-            0 0 8px #ff4fd8,
-            0 0 18px #ff4fd8,
-            0 0 30px #00e5ff;
+      @keyframes km-castle-glow {
+        0%, 100% {
+          opacity: .45;
+          transform: scale(1);
         }
         50% {
-          text-shadow:
-            0 0 4px #ff4fd8,
-            0 0 12px #00e5ff,
-            0 0 24px #00e5ff;
+          opacity: .85;
+          transform: scale(1.04);
         }
-      }
-
-      @keyframes km-scan {
-        0% { transform: translateY(-100%); opacity: 0; }
-        30% { opacity: .35; }
-        100% { transform: translateY(220px); opacity: 0; }
-      }
-
-      @keyframes km-mario-run {
-        0% { left: -44px; bottom: 54px; }
-        35% { left: 130px; bottom: 54px; }
-        42% { left: 158px; bottom: 106px; }
-        50% { left: 186px; bottom: 54px; }
-        70% { left: 255px; bottom: 54px; }
-        77% { left: 286px; bottom: 96px; }
-        84% { left: 315px; bottom: 54px; }
-        100% { left: 410px; bottom: 54px; }
-      }
-
-      @keyframes km-goomba-walk {
-        0% { left: 390px; }
-        100% { left: -44px; }
-      }
-
-      .km-bat {
-        position: absolute;
-        width: 18px;
-        height: 10px;
-        background: #000;
-        clip-path: polygon(
-          0 50%,
-          18% 18%,
-          38% 45%,
-          50% 0,
-          62% 45%,
-          82% 18%,
-          100% 50%,
-          74% 58%,
-          58% 50%,
-          50% 80%,
-          42% 50%,
-          26% 58%
-        );
-        animation: km-batfly 3.6s ease-out infinite;
-        filter: drop-shadow(0 0 6px rgba(0,0,0,.8));
-      }
-
-      .km-rain {
-        position: absolute;
-        inset: -40px 0;
-        pointer-events: none;
-        opacity: .22;
-        background-image:
-          repeating-linear-gradient(
-            110deg,
-            rgba(255,255,255,.0) 0px,
-            rgba(255,255,255,.0) 10px,
-            rgba(255,255,255,.35) 11px,
-            rgba(255,255,255,.35) 12px,
-            rgba(255,255,255,.0) 14px
-          );
-        animation: km-rain .55s linear infinite;
-      }
-
-      .km-scanline {
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 0;
-        height: 70px;
-        background: linear-gradient(
-          180deg,
-          transparent,
-          rgba(255,255,255,.22),
-          transparent
-        );
-        animation: km-scan 4.5s linear infinite;
-        pointer-events: none;
-      }
-
-      .km-neon-text {
-        font-family: 'Bebas Neue', 'Orbitron', sans-serif;
-        animation: km-neon 2.2s ease-in-out infinite;
-      }
-
-      .km-world-img-bg {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        opacity: .72;
-      }
-
-      .km-world-soft-overlay {
-        position: absolute;
-        inset: 0;
-        background:
-          radial-gradient(circle at 20% 18%, rgba(255,255,255,.32), transparent 22%),
-          linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.08));
-        pointer-events: none;
       }
     `;
 
     document.head.appendChild(style);
   }
 
-  /* ═══════════════════════════════════════
-     PIXEL SPRITES — FALLBACK MARIO / GOOMBA
-  ═══════════════════════════════════════ */
-  function drawMarioFrame(ctx, frame) {
-    ctx.clearRect(0, 0, 44, 58);
+  function px(ctx, S, x, y, c) {
+    ctx.fillStyle = c;
+    ctx.fillRect(x * S, y * S, S, S);
+  }
+
+  function drawMarioFrame(ctx, frame, green = false) {
+    ctx.clearRect(0, 0, 40, 52);
 
     const S = 4;
-    const R = '#e52213';
+    const R = green ? '#16a34a' : '#e52213';
     const B = '#0052a2';
     const SK = '#fba86f';
     const SH = '#5e1205';
     const BL = '#4a2200';
-    const W = '#ffffff';
+    const W = '#fff';
     const E = '#e8a000';
 
-    function d(x, y, c) {
-      ctx.fillStyle = c;
-      ctx.fillRect(x * S, y * S, S, S);
-    }
+    const d = (x, y, c) => px(ctx, S, x, y, c);
 
     [
       [3,0,R],[4,0,R],[5,0,R],[6,0,R],[7,0,R],[8,0,R],
-      [2,1,R],[3,1,R],[4,1,R],[5,1,R],[6,1,R],[7,1,R],[8,1,R],[9,1,R],
-      [1,2,SH],[2,2,SH],[3,2,SH],
+      [2,1,R],[3,1,R],[4,1,R],[5,1,R],[6,1,R],[7,1,R],[8,1,R],[9,1,R]
+    ].forEach(p => d(...p));
+
+    [[1,2,SH],[2,2,SH],[3,2,SH]].forEach(p => d(...p));
+
+    [
       [3,2,SK],[4,2,SK],[5,2,SK],[6,2,SK],[7,2,SK],[8,2,SK],[9,2,SK],
       [1,3,SK],[2,3,SK],[3,3,SK],[4,3,SK],[5,3,SK],[6,3,SK],[7,3,SK],[8,3,SK],[9,3,SK],
-      [1,4,SK],[2,4,SK],[3,4,SK],[4,4,SK],[5,4,SK],[6,4,SK],[7,4,SK],[8,4,SK],[9,4,SK],
-      [2,4,SH],[3,4,SH],[4,4,SH],[6,4,SH],[7,4,SH],[8,4,SH],
-      [2,5,R],[1,5,R],[8,5,R],[9,5,R],
+      [1,4,SK],[2,4,SK],[3,4,SK],[4,4,SK],[5,4,SK],[6,4,SK],[7,4,SK],[8,4,SK],[9,4,SK]
+    ].forEach(p => d(...p));
+
+    d(3,3,SH);
+    d(7,3,SH);
+
+    [[2,4,SH],[3,4,SH],[4,4,SH],[6,4,SH],[7,4,SH],[8,4,SH]].forEach(p => d(...p));
+
+    [
       [3,5,E],[4,5,E],[5,5,E],[6,5,E],[7,5,E],
+      [2,5,R],[1,5,R],[8,5,R],[9,5,R],
       [0,6,B],[1,6,B],[2,6,B],[3,6,B],[4,6,B],[5,6,B],[6,6,B],[7,6,B],[8,6,B],[9,6,B],[10,6,B],
       [0,7,B],[1,7,B],[2,7,B],[3,7,B],[4,7,B],[5,7,B],[6,7,B],[7,7,B],[8,7,B],[9,7,B],[10,7,B],
       [2,8,B],[3,8,B],[4,8,SK],[5,8,SK],[6,8,B],[7,8,B],[8,8,B],
       [2,9,SK],[3,9,SK],[4,9,SK],[5,9,SK],[6,9,SK],[7,9,SK],[8,9,SK]
     ].forEach(p => d(...p));
 
-    d(3,3,SH);
-    d(7,3,SH);
     d(-1,6,SK);
     d(-1,7,R);
     d(11,6,SK);
@@ -785,31 +339,28 @@
     d(3,5,W);
     d(8,5,W);
 
-    if (frame % 2 === 0) {
-      [
-        [2,10,B],[3,10,B],[7,10,B],[8,10,B],[9,10,B],
-        [2,11,BL],[3,11,BL],[8,11,BL],[9,11,BL]
-      ].forEach(p => d(...p));
-    } else {
-      [
-        [1,10,B],[2,10,B],[3,10,B],[8,10,B],[9,10,B],
-        [1,11,BL],[2,11,BL],[8,11,BL],[9,11,BL]
-      ].forEach(p => d(...p));
-    }
+    const legsEven = [
+      [2,10,B],[3,10,B],[7,10,B],[8,10,B],[9,10,B],
+      [2,11,BL],[3,11,BL],[8,11,BL],[9,11,BL]
+    ];
+
+    const legsOdd = [
+      [1,10,B],[2,10,B],[3,10,B],[8,10,B],[9,10,B],
+      [1,11,BL],[2,11,BL],[8,11,BL],[9,11,BL]
+    ];
+
+    (frame % 2 === 0 ? legsEven : legsOdd).forEach(p => d(...p));
   }
 
   function drawGoombaFrame(ctx, frame) {
-    ctx.clearRect(0, 0, 40, 40);
+    ctx.clearRect(0, 0, 36, 36);
 
     const S = 4;
     const GB = '#795548';
     const GD = '#4a2200';
     const GW = '#fff';
 
-    function d(x, y, c) {
-      ctx.fillStyle = c;
-      ctx.fillRect(x * S, y * S, S, S);
-    }
+    const d = (x, y, c) => px(ctx, S, x, y, c);
 
     [
       [1,2,GB],[2,2,GB],[3,2,GB],[4,2,GB],[5,2,GB],[6,2,GB],[7,2,GB],
@@ -827,340 +378,1272 @@
     d(2,4,'#000');
     d(7,4,'#000');
 
+    [[0,2,GD],[1,2,GD],[6,2,GD],[7,2,GD],[8,2,GD]].forEach(p => d(...p));
+
+    const feetEven = [[0,7,GD],[1,7,GD],[6,7,GD],[7,7,GD],[8,7,GD]];
+    const feetOdd = [[1,7,GD],[2,7,GD],[5,7,GD],[6,7,GD],[7,7,GD]];
+
+    (frame % 2 === 0 ? feetEven : feetOdd).forEach(p => d(...p));
+  }
+
+  function drawPeachFrame(ctx) {
+    ctx.clearRect(0, 0, 32, 52);
+
+    const S = 4;
+    const P = '#f06292';
+    const SK = '#fba86f';
+    const Y = '#ffd600';
+    const C = '#ffd700';
+    const W = '#fff';
+    const BL = '#1565c0';
+    const M = '#c2185b';
+
+    const d = (x, y, c) => px(ctx, S, x, y, c);
+
     [
-      [0,2,GD],[1,2,GD],[6,2,GD],[7,2,GD],[8,2,GD]
+      [3,0,C],[5,0,C],[7,0,C],
+      [4,1,C],[5,1,C],[6,1,C],
+      [2,2,Y],[3,2,Y],[4,2,Y],[5,2,Y],[6,2,Y],[7,2,Y],[8,2,Y],
+      [2,3,Y],[3,3,Y],[7,3,Y],[8,3,Y],
+      [3,3,SK],[4,3,SK],[5,3,SK],[6,3,SK],
+      [3,4,SK],[4,4,SK],[5,4,SK],[6,4,SK],[7,4,SK],
+      [3,5,SK],[4,5,SK],[5,5,SK],[6,5,SK],[7,5,SK]
     ].forEach(p => d(...p));
 
-    if (frame % 2 === 0) {
-      [
-        [0,7,GD],[1,7,GD],[6,7,GD],[7,7,GD],[8,7,GD]
-      ].forEach(p => d(...p));
-    } else {
-      [
-        [1,7,GD],[2,7,GD],[5,7,GD],[6,7,GD],[7,7,GD]
-      ].forEach(p => d(...p));
+    d(4,4,W);
+    d(7,4,W);
+    d(4,4,BL);
+    d(7,4,BL);
+    d(5,5,M);
+    d(6,5,M);
+
+    [
+      [3,6,P],[4,6,P],[5,6,P],[6,6,P],[7,6,P],
+      [2,7,P],[3,7,P],[4,7,P],[5,7,P],[6,7,P],[7,7,P],[8,7,P],
+      [1,8,P],[2,8,P],[3,8,P],[4,8,P],[5,8,P],[6,8,P],[7,8,P],[8,8,P],[9,8,P],
+      [1,9,P],[2,9,P],[3,9,P],[4,9,P],[5,9,P],[6,9,P],[7,9,P],[8,9,P],[9,9,P],
+      [0,10,P],[1,10,P],[2,10,P],[3,10,P],[4,10,P],[5,10,P],[6,10,P],[7,10,P],[8,10,P],[9,10,P],[10,10,P],
+      [0,11,P],[1,11,P],[2,11,P],[3,11,P],[4,11,P],[5,11,P],[6,11,P],[7,11,P],[8,11,P],[9,11,P],[10,11,P],
+      [1,6,SK],[9,6,SK],[10,5,SK]
+    ].forEach(p => d(...p));
+  }
+
+  function drawBowserFrame(ctx) {
+    ctx.clearRect(0, 0, 64, 64);
+
+    const S = 4;
+    const G = '#5f9f35';
+    const DG = '#2f6f1f';
+    const R = '#d62828';
+    const W = '#fff';
+    const O = '#ff7a00';
+    const Y = '#ffd600';
+    const K = '#111';
+    const SH = '#8bc34a';
+    const H = '#f5b041';
+
+    const d = (x, y, c) => px(ctx, S, x, y, c);
+
+    [
+      [4,0,R],[5,0,R],[10,0,R],[11,0,R],
+      [3,1,R],[4,1,R],[5,1,R],[7,1,H],[8,1,H],[10,1,R],[11,1,R],[12,1,R],
+      [3,2,G],[4,2,G],[5,2,G],[6,2,G],[7,2,G],[8,2,G],[9,2,G],[10,2,G],[11,2,G],[12,2,G],
+      [2,3,G],[3,3,G],[4,3,G],[5,3,G],[6,3,G],[7,3,G],[8,3,G],[9,3,G],[10,3,G],[11,3,G],[12,3,G],[13,3,G],
+      [2,4,G],[3,4,G],[4,4,G],[5,4,G],[6,4,G],[7,4,G],[8,4,G],[9,4,G],[10,4,G],[11,4,G],[12,4,G],[13,4,G],
+      [3,3,W],[4,3,W],[11,3,W],[12,3,W],
+      [4,3,R],[11,3,R],
+      [5,3,K],[12,3,K],
+      [4,5,H],[5,5,H],[6,5,H],[7,5,H],[8,5,H],[9,5,H],[10,5,H],[11,5,H],
+      [5,6,H],[6,6,H],[7,6,H],[8,6,H],[9,6,H],[10,6,H],
+      [5,7,DG],[6,7,DG],[7,7,DG],[8,7,DG],[9,7,DG],[10,7,DG],
+      [4,8,DG],[5,8,DG],[6,8,SH],[7,8,SH],[8,8,SH],[9,8,SH],[10,8,DG],[11,8,DG],
+      [3,9,DG],[4,9,DG],[5,9,DG],[6,9,DG],[7,9,DG],[8,9,DG],[9,9,DG],[10,9,DG],[11,9,DG],[12,9,DG],
+      [4,10,DG],[5,10,DG],[10,10,DG],[11,10,DG],
+      [4,11,DG],[5,11,DG],[10,11,DG],[11,11,DG],
+      [1,7,O],[2,7,Y],[13,7,O],[14,7,Y],
+      [6,8,W],[9,8,W]
+    ].forEach(p => d(...p));
+  }
+
+  function statCard(label, id, c1, c2, textColor) {
+    return `
+      <div style="
+        border-radius:15px;
+        padding:10px 8px 9px;
+        text-align:center;
+        background:linear-gradient(155deg,${c1},${c2});
+        border:3px solid rgba(255,255,255,.42);
+        position:relative;
+        overflow:hidden;
+        box-shadow:0 5px 0 rgba(0,0,0,.25), inset 0 2px 0 rgba(255,255,255,.30);
+      ">
+        <div style="
+          position:absolute;
+          top:0;
+          left:0;
+          right:0;
+          height:45%;
+          background:linear-gradient(180deg,rgba(255,255,255,.25),transparent);
+        "></div>
+        <div style="
+          position:relative;
+          font-size:8px;
+          font-weight:900;
+          letter-spacing:.18em;
+          text-transform:uppercase;
+          color:rgba(255,255,255,.62);
+          margin-bottom:5px;
+        ">${label}</div>
+        <div id="${id}" style="
+          position:relative;
+          font-size:12px;
+          font-weight:900;
+          color:${textColor};
+          text-shadow:1px 1px 0 rgba(0,0,0,.28);
+          line-height:1.2;
+        ">--</div>
+      </div>
+    `;
+  }
+
+  function createUI() {
+    injectStyles();
+
+    if (document.getElementById('kekaMario')) return;
+
+    const widget = document.createElement('div');
+    widget.id = 'kekaMario';
+
+    widget.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 2147483646;
+      width: 374px;
+      border-radius: 28px;
+      overflow: hidden;
+      background:#e8282b;
+      box-shadow:
+        0 0 0 4px #fff,
+        0 0 0 8px #e8282b,
+        0 0 0 12px #fff,
+        0 24px 70px rgba(0,0,0,.42);
+      animation:
+        km-slidein .65s cubic-bezier(.34,1.4,.64,1) forwards,
+        km-float 4s ease-in-out infinite .9s;
+      user-select: none;
+      cursor: default;
+    `;
+
+    widget.innerHTML = `
+      <div id="kmWorld" style="
+        position:relative;
+        height:252px;
+        overflow:hidden;
+        background:linear-gradient(180deg,#4f8ffc 0%,#78b3ff 58%,#a9d5ff 100%);
+      ">
+        <div style="
+          position:absolute;
+          inset:0;
+          background:linear-gradient(180deg,rgba(255,255,255,.20),transparent 38%,rgba(0,0,0,.08));
+          pointer-events:none;
+        "></div>
+
+        <div style="
+          position:absolute;
+          top:10px;
+          left:28px;
+          width:3px;
+          height:3px;
+          border-radius:50%;
+          background:#fff;
+          animation:km-twinkle 2s ease-in-out infinite 0s;
+        "></div>
+
+        <div style="
+          position:absolute;
+          top:17px;
+          left:88px;
+          width:2px;
+          height:2px;
+          border-radius:50%;
+          background:#fff;
+          animation:km-twinkle 2s ease-in-out infinite .8s;
+        "></div>
+
+        <div style="
+          position:absolute;
+          top:9px;
+          left:210px;
+          width:3px;
+          height:3px;
+          border-radius:50%;
+          background:#fff;
+          animation:km-twinkle 2s ease-in-out infinite 1.4s;
+        "></div>
+
+        <div style="
+          position:absolute;
+          top:16px;
+          right:22px;
+          width:54px;
+          height:54px;
+          border-radius:50%;
+          background:#ffd700;
+          border:4px solid #fff;
+          box-shadow:0 0 0 3px #e8a000,0 8px 22px rgba(255,200,0,.55);
+        "></div>
+
+        <svg style="
+          position:absolute;
+          top:18px;
+          left:12px;
+          animation:km-cloud 7s ease-in-out infinite alternate;
+        " width="90" height="46" viewBox="0 0 90 46">
+          <ellipse cx="45" cy="37" rx="42" ry="18" fill="white"/>
+          <ellipse cx="28" cy="30" rx="22" ry="20" fill="white"/>
+          <ellipse cx="55" cy="28" rx="24" ry="22" fill="white"/>
+          <ellipse cx="40" cy="24" rx="18" ry="17" fill="white"/>
+        </svg>
+
+        <svg style="
+          position:absolute;
+          top:26px;
+          left:174px;
+          animation:km-cloud 8s ease-in-out infinite alternate-reverse;
+        " width="66" height="36" viewBox="0 0 66 36">
+          <ellipse cx="33" cy="28" rx="30" ry="13" fill="white"/>
+          <ellipse cx="20" cy="21" rx="16" ry="15" fill="white"/>
+          <ellipse cx="42" cy="20" rx="18" ry="16" fill="white"/>
+        </svg>
+
+        <svg style="
+          position:absolute;
+          bottom:56px;
+          left:0;
+          right:0;
+          width:100%;
+          height:82px;
+        " viewBox="0 0 374 82" preserveAspectRatio="none">
+          <path d="M0 82 C45 26 86 36 120 82 Z" fill="#247a35"/>
+          <path d="M72 82 C132 16 202 28 248 82 Z" fill="#2f9a44"/>
+          <path d="M206 82 C262 24 326 30 374 82 Z" fill="#247a35"/>
+          <path d="M0 82 C55 42 96 48 138 82 Z" fill="#4caf50"/>
+          <path d="M180 82 C232 46 308 44 374 82 Z" fill="#43a047"/>
+          <circle cx="66" cy="54" r="7" fill="#8ee08f" opacity=".65"/>
+          <circle cx="235" cy="56" r="8" fill="#8ee08f" opacity=".55"/>
+        </svg>
+
+        <div style="
+          position:absolute;
+          bottom:56px;
+          left:0;
+          right:0;
+          height:22px;
+          background:linear-gradient(180deg,#54c759,#2f9a44);
+          border-top:3px solid rgba(255,255,255,.75);
+          box-shadow:0 -3px 0 rgba(46,125,50,.45) inset;
+        "></div>
+
+        <svg style="position:absolute;bottom:0;left:0;" width="374" height="56" viewBox="0 0 374 56">
+          <defs>
+            <pattern id="kmBrick" x="0" y="0" width="36" height="18" patternUnits="userSpaceOnUse">
+              <rect width="36" height="18" fill="#c8860a"/>
+              <rect x="0" y="0" width="35" height="8" fill="#d4920e"/>
+              <rect x="0" y="10" width="17" height="8" fill="#d4920e"/>
+              <rect x="19" y="10" width="17" height="8" fill="#d4920e"/>
+              <rect x="0" y="8" width="36" height="2" fill="#7a5000"/>
+              <rect x="18" y="0" width="2" height="8" fill="#7a5000"/>
+              <rect x="18" y="10" width="2" height="8" fill="#7a5000"/>
+            </pattern>
+          </defs>
+          <rect x="0" y="0" width="374" height="14" fill="#4caf50"/>
+          <rect x="0" y="2" width="374" height="5" fill="#66bb6a"/>
+          <rect x="0" y="12" width="374" height="2" fill="#2e7d32"/>
+          <rect x="0" y="14" width="374" height="42" fill="url(#kmBrick)"/>
+        </svg>
+
+        <div style="
+          position:absolute;
+          bottom:112px;
+          left:196px;
+          width:72px;
+          height:18px;
+          border-radius:4px;
+          background:#c84b0c;
+          border:3px solid #fff;
+          box-shadow:0 4px 0 #8b2e00,inset 0 3px 0 rgba(255,255,255,.18);
+        "></div>
+
+        <div style="
+          position:absolute;
+          bottom:132px;
+          left:100px;
+          width:56px;
+          height:18px;
+          border-radius:4px;
+          background:#c84b0c;
+          border:3px solid #fff;
+          box-shadow:0 4px 0 #8b2e00,inset 0 3px 0 rgba(255,255,255,.18);
+        "></div>
+
+        <div style="
+          position:absolute;
+          bottom:158px;
+          left:104px;
+          width:30px;
+          height:30px;
+          background:#e8a000;
+          border:3px solid #fff;
+          border-radius:7px;
+          box-shadow:0 4px 0 #7a4800;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          font-size:14px;
+          font-weight:900;
+          color:#fff;
+          text-shadow:1px 1px 0 rgba(0,0,0,.3);
+          animation:km-qbob 2s ease-in-out infinite;
+        ">?</div>
+
+        <div style="
+          position:absolute;
+          bottom:174px;
+          left:206px;
+          width:30px;
+          height:30px;
+          background:#e8a000;
+          border:3px solid #fff;
+          border-radius:7px;
+          box-shadow:0 4px 0 #7a4800;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          font-size:14px;
+          font-weight:900;
+          color:#fff;
+          text-shadow:1px 1px 0 rgba(0,0,0,.3);
+          animation:km-qbob 2.1s ease-in-out infinite .7s;
+        ">?</div>
+
+        <div style="
+          position:absolute;
+          bottom:159px;
+          left:244px;
+          width:30px;
+          height:30px;
+          background:#e8a000;
+          border:3px solid #fff;
+          border-radius:7px;
+          box-shadow:0 4px 0 #7a4800;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          font-size:14px;
+          font-weight:900;
+          color:#fff;
+          text-shadow:1px 1px 0 rgba(0,0,0,.3);
+          animation:km-qbob 1.9s ease-in-out infinite 1.4s;
+        ">?</div>
+
+        <div style="
+          position:absolute;
+          bottom:56px;
+          left:16px;
+          display:flex;
+          flex-direction:column;
+          align-items:center;
+        ">
+          <div style="
+            width:46px;
+            height:14px;
+            background:#4caf50;
+            border:3px solid #fff;
+            border-radius:4px 4px 0 0;
+            box-shadow:0 0 0 2px #2e7d32,inset 0 3px 0 rgba(255,255,255,.25);
+          "></div>
+          <div style="
+            width:36px;
+            height:30px;
+            background:#43a047;
+            border:3px solid #fff;
+            border-top:none;
+            box-shadow:0 0 0 2px #2e7d32;
+          "></div>
+        </div>
+
+        <div style="
+          position:absolute;
+          bottom:56px;
+          right:0;
+          width:86px;
+          height:88px;
+          pointer-events:none;
+        ">
+          <div style="
+            position:absolute;
+            right:4px;
+            bottom:0;
+            width:58px;
+            height:58px;
+            background:#6b3410;
+            border:3px solid #fff;
+            border-radius:8px 8px 0 0;
+            box-shadow:0 4px 0 #2a1500,inset 0 5px 0 rgba(255,255,255,.12);
+          "></div>
+          <div style="
+            position:absolute;
+            right:9px;
+            bottom:44px;
+            width:48px;
+            height:22px;
+            background:#4b2500;
+            border:3px solid #fff;
+            border-radius:8px 8px 0 0;
+          "></div>
+          <div style="
+            position:absolute;
+            right:20px;
+            bottom:63px;
+            width:24px;
+            height:18px;
+            background:#4b2500;
+            border:3px solid #fff;
+            border-bottom:none;
+            border-radius:7px 7px 0 0;
+          "></div>
+          <div style="
+            position:absolute;
+            right:21px;
+            bottom:20px;
+            width:20px;
+            height:30px;
+            background:#1b0f08;
+            border:2px solid rgba(255,255,255,.7);
+            border-radius:12px 12px 0 0;
+          "></div>
+          <div style="
+            position:absolute;
+            right:18px;
+            bottom:39px;
+            width:22px;
+            height:22px;
+            border-radius:50%;
+            background:#ffd700;
+            filter:blur(9px);
+            animation:km-castle-glow 2s ease-in-out infinite;
+          "></div>
+        </div>
+
+        <canvas id="kmBowser" width="64" height="64" style="
+          position:absolute;
+          bottom:56px;
+          right:48px;
+          image-rendering:pixelated;
+          animation:km-bowser-breathe 1.8s ease-in-out infinite;
+          filter:drop-shadow(0 4px 0 rgba(0,0,0,.22));
+        "></canvas>
+
+        <canvas id="kmPeachSprite" width="32" height="52" style="
+          position:absolute;
+          bottom:56px;
+          right:8px;
+          image-rendering:pixelated;
+          animation:km-peach-wave 1.4s ease-in-out infinite;
+          filter:drop-shadow(0 4px 0 rgba(0,0,0,.20));
+        "></canvas>
+
+        <canvas id="kmLuigi" width="40" height="52" style="
+          position:absolute;
+          bottom:56px;
+          left:66px;
+          image-rendering:pixelated;
+          animation:km-luigi-idle 1.6s ease-in-out infinite;
+          filter:drop-shadow(0 4px 0 rgba(0,0,0,.18));
+        "></canvas>
+
+        <canvas id="kmMario" width="40" height="52" style="
+          position:absolute;
+          bottom:56px;
+          image-rendering:pixelated;
+          animation:km-mrun 8s linear infinite;
+        "></canvas>
+
+        <canvas id="kmGoomba" width="36" height="36" style="
+          position:absolute;
+          bottom:56px;
+          image-rendering:pixelated;
+          animation:km-gwalk 6s linear infinite;
+        "></canvas>
+
+        <div style="
+          position:absolute;
+          top:12px;
+          left:12px;
+          right:12px;
+          background:rgba(255,255,255,.25);
+          backdrop-filter:blur(20px) saturate(180%);
+          -webkit-backdrop-filter:blur(20px) saturate(180%);
+          border:3px solid rgba(255,255,255,.92);
+          border-radius:20px;
+          padding:12px 14px 11px;
+          box-shadow:inset 0 2px 0 rgba(255,255,255,1),0 8px 32px rgba(0,80,200,.16);
+          overflow:hidden;
+        ">
+          <div style="
+            position:absolute;
+            top:-20px;
+            left:-70px;
+            width:80px;
+            height:170px;
+            background:rgba(255,255,255,.28);
+            animation:km-shine 5s linear infinite;
+            pointer-events:none;
+          "></div>
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            margin-bottom:7px;
+            position:relative;
+            z-index:2;
+          ">
+            <div>
+              <div style="
+                font-size:13px;
+                font-weight:900;
+                letter-spacing:.06em;
+                color:#1a237e;
+                text-shadow:0 1px 0 rgba(255,255,255,.65);
+              ">Grind Tracker</div>
+              <div style="
+                font-size:9px;
+                font-weight:800;
+                letter-spacing:.2em;
+                text-transform:uppercase;
+                color:rgba(26,35,126,.52);
+                margin-top:1px;
+              ">World 8-1 • Eternal Session</div>
+            </div>
+
+            <div style="
+              display:flex;
+              align-items:center;
+              gap:8px;
+            ">
+              <div style="
+                display:flex;
+                align-items:center;
+                gap:5px;
+                background:#22c55e;
+                border:2.5px solid #fff;
+                border-radius:50px;
+                padding:4px 11px;
+                box-shadow:0 3px 0 #14532d;
+              ">
+                <div style="
+                  width:7px;
+                  height:7px;
+                  border-radius:50%;
+                  background:#fff;
+                  animation:km-ld 1.5s ease-in-out infinite;
+                "></div>
+                <span style="
+                  font-size:9px;
+                  font-weight:900;
+                  color:#fff;
+                  letter-spacing:.1em;
+                ">LIVE</span>
+              </div>
+
+              <button id="kmMinBtn" style="
+                width:27px;
+                height:27px;
+                border-radius:50%;
+                background:#fff;
+                border:2.5px solid rgba(255,255,255,.85);
+                box-shadow:0 3px 0 rgba(0,0,0,.18);
+                color:#1a237e;
+                font-size:16px;
+                line-height:1;
+                cursor:pointer;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                font-weight:900;
+              ">−</button>
+            </div>
+          </div>
+
+          <div style="
+            display:flex;
+            align-items:flex-end;
+            justify-content:center;
+            gap:2px;
+            position:relative;
+            z-index:2;
+            margin-bottom:4px;
+          ">
+            <span id="kmHours" style="
+              font-size:62px;
+              line-height:.88;
+              font-weight:900;
+              color:#1a237e;
+              text-shadow:3px 3px 0 rgba(255,255,255,.75),-1px -1px 0 rgba(255,255,255,.55);
+              letter-spacing:-2px;
+            ">0</span>
+            <span style="
+              font-size:16px;
+              font-weight:900;
+              color:rgba(26,35,126,.52);
+              margin-bottom:8px;
+              margin-left:1px;
+              margin-right:4px;
+            ">h</span>
+            <span id="kmMins" style="
+              font-size:62px;
+              line-height:.88;
+              font-weight:900;
+              color:#1a237e;
+              text-shadow:3px 3px 0 rgba(255,255,255,.75),-1px -1px 0 rgba(255,255,255,.55);
+              letter-spacing:-2px;
+            ">00</span>
+            <span style="
+              font-size:16px;
+              font-weight:900;
+              color:rgba(26,35,126,.52);
+              margin-bottom:8px;
+              margin-left:1px;
+            ">m</span>
+          </div>
+
+          <div style="
+            height:12px;
+            border-radius:999px;
+            background:rgba(26,35,126,.16);
+            border:2px solid rgba(255,255,255,.7);
+            overflow:hidden;
+            margin:3px 3px 6px;
+            position:relative;
+            z-index:2;
+          ">
+            <div id="kmProgress" style="
+              height:100%;
+              width:0%;
+              border-radius:999px;
+              background:repeating-linear-gradient(45deg,#ffd600 0,#ffd600 8px,#f9a825 8px,#f9a825 16px);
+              box-shadow:inset 0 2px 0 rgba(255,255,255,.55);
+              animation:km-progress-stripe 1.4s linear infinite;
+            "></div>
+          </div>
+
+          <div id="kmVibe" style="
+            font-size:10px;
+            font-weight:800;
+            font-style:italic;
+            color:rgba(26,35,126,.58);
+            text-align:center;
+            position:relative;
+            z-index:2;
+          ">"kaam shuru kar… the grind demands tribute."</div>
+        </div>
+      </div>
+
+      <div style="
+        height:24px;
+        background:repeating-linear-gradient(90deg,#c84b0c 0,#c84b0c 30px,#a33800 30px,#a33800 32px);
+        border-top:3px solid #fff;
+        border-bottom:2px solid #8b2e00;
+        position:relative;
+      "></div>
+
+      <div id="kmPanel" style="
+        background:linear-gradient(180deg,#ef3033 0%,#d71920 100%);
+        padding:14px 14px 12px;
+        position:relative;
+        overflow:hidden;
+      ">
+        <div style="
+          position:absolute;
+          inset:0;
+          background:radial-gradient(circle at 10% 0%,rgba(255,255,255,.18),transparent 28%),radial-gradient(circle at 90% 20%,rgba(255,214,0,.18),transparent 28%);
+          pointer-events:none;
+        "></div>
+
+        <div style="
+          position:relative;
+          z-index:1;
+          margin-bottom:12px;
+        ">
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            margin-bottom:7px;
+          ">
+            <span style="
+              font-size:9px;
+              font-weight:900;
+              letter-spacing:.2em;
+              text-transform:uppercase;
+              color:rgba(255,255,255,.68);
+            ">Coins to Freedom</span>
+            <span id="kmPct" style="
+              font-size:13px;
+              font-weight:900;
+              color:#ffe566;
+              text-shadow:1px 1px 0 rgba(0,0,0,.3);
+            ">0%</span>
+          </div>
+
+          <div id="kmCoins" style="
+            display:flex;
+            gap:3px;
+            flex-wrap:nowrap;
+          "></div>
+
+          <div style="
+            font-size:8px;
+            font-weight:900;
+            letter-spacing:.12em;
+            text-transform:uppercase;
+            color:rgba(255,255,255,.46);
+            margin-top:7px;
+          ">100% coins = flagpole clear + castle victory</div>
+        </div>
+
+        <div style="
+          position:relative;
+          z-index:1;
+          display:grid;
+          grid-template-columns:1fr 1fr 1fr;
+          gap:8px;
+          margin-bottom:12px;
+        ">
+          ${statCard('Worked', 'kmWorked', '#1565c0', '#0d47a1', '#fff')}
+          ${statCard('Baaki', 'kmLeft', '#e65100', '#bf360c', '#ffe566')}
+          ${statCard('Break', 'kmBreak', '#2e7d32', '#1b5e20', '#fff')}
+        </div>
+
+        <div style="
+          position:relative;
+          z-index:1;
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:8px;
+          margin-bottom:11px;
+        ">
+          <div style="
+            border-radius:17px;
+            padding:10px 12px;
+            background:#f9a825;
+            border:3px solid rgba(255,255,255,.55);
+            position:relative;
+            overflow:hidden;
+            box-shadow:0 5px 0 rgba(0,0,0,.2),inset 0 2px 0 rgba(255,255,255,.35);
+          ">
+            <div style="
+              font-size:8px;
+              font-weight:900;
+              letter-spacing:.15em;
+              text-transform:uppercase;
+              color:rgba(100,50,0,.72);
+              margin-bottom:5px;
+            ">☀️ Half Day</div>
+            <div id="kmHalf" style="
+              font-size:18px;
+              font-weight:900;
+              color:#5d2e00;
+              line-height:1;
+            ">--:--</div>
+          </div>
+
+          <div style="
+            border-radius:17px;
+            padding:10px 12px;
+            background:#1e88e5;
+            border:3px solid rgba(255,255,255,.55);
+            position:relative;
+            overflow:hidden;
+            box-shadow:0 5px 0 rgba(0,0,0,.2),inset 0 2px 0 rgba(255,255,255,.35);
+          ">
+            <div style="
+              font-size:8px;
+              font-weight:900;
+              letter-spacing:.15em;
+              text-transform:uppercase;
+              color:rgba(255,255,255,.68);
+              margin-bottom:5px;
+            ">🚪 Majdoori Khatam</div>
+            <div id="kmFull" style="
+              font-size:18px;
+              font-weight:900;
+              color:#fff;
+              line-height:1;
+            ">--:--</div>
+          </div>
+        </div>
+
+        <div style="
+          position:relative;
+          z-index:1;
+          background:rgba(0,0,0,.22);
+          border-radius:10px;
+          padding:7px 10px;
+          overflow:hidden;
+          border:1px solid rgba(255,255,255,.12);
+        ">
+          <span id="kmTicker" style="
+            display:inline-block;
+            white-space:nowrap;
+            font-size:8px;
+            font-weight:900;
+            letter-spacing:.2em;
+            text-transform:uppercase;
+            color:rgba(255,255,255,.52);
+            animation:km-ticker 28s linear infinite;
+          ">CHAI PIVI CHE KE NHI ★ BOSS NE KHABAR NATHI ★ GHAR JA BHAI ★ SURAT NO SHER ★ KEKA BAND KAR ★ PAKODA TIME ★ FINAL CASTLE AAVI GAYU ★ CHAI PIVI CHE KE NHI ★</span>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(widget);
+
+    widget.addEventListener('animationend', ev => {
+      if (ev.animationName === 'km-slidein' && !didSlideIn) {
+        didSlideIn = true;
+      }
+    }, { once: true });
+
+    let minimized = false;
+
+    document.getElementById('kmMinBtn').addEventListener('click', ev => {
+      ev.stopPropagation();
+      minimized = !minimized;
+
+      document.getElementById('kmPanel').style.display = minimized ? 'none' : 'block';
+      document.getElementById('kmWorld').style.height = minimized ? '62px' : '252px';
+      ev.currentTarget.textContent = minimized ? '+' : '−';
+    });
+
+    buildCoins(0);
+    startSprites();
+  }
+
+  function buildCoins(pct) {
+    const wrap = document.getElementById('kmCoins');
+    if (!wrap) return;
+
+    const TOTAL = 17;
+    const lit = Math.round((pct / 100) * TOTAL);
+
+    wrap.innerHTML = '';
+
+    for (let i = 0; i < TOTAL; i++) {
+      const c = document.createElement('div');
+      const on = i < lit;
+
+      c.style.cssText = `
+        width:18px;
+        height:18px;
+        border-radius:50%;
+        flex-shrink:0;
+        position:relative;
+        ${
+          on
+            ? `
+              background:radial-gradient(circle at 35% 28%,#fffde7,#ffd600 38%,#c67c00 72%,#7a4500 100%);
+              border:2.5px solid #fff;
+              box-shadow:0 3px 0 rgba(0,0,0,.25),inset 0 1px 2px rgba(255,255,255,.5);
+              animation:km-coin-pop 2.4s ease-in-out infinite ${i * .06}s;
+            `
+            : `
+              background:rgba(0,0,0,.22);
+              border:1.5px solid rgba(255,255,255,.22);
+              box-shadow:inset 0 2px 4px rgba(0,0,0,.12);
+            `
+        }
+      `;
+
+      if (on) {
+        const shine = document.createElement('div');
+        shine.style.cssText = `
+          position:absolute;
+          top:2px;
+          left:3px;
+          width:5px;
+          height:4px;
+          background:rgba(255,255,255,.65);
+          border-radius:50%;
+        `;
+        c.appendChild(shine);
+      }
+
+      wrap.appendChild(c);
     }
   }
 
   function startSprites() {
-    const mc = document.getElementById('kmMarioCanvas');
-    const gc = document.getElementById('kmGoombaCanvas');
+    const mc = document.getElementById('kmMario');
+    const gc = document.getElementById('kmGoomba');
+    const lc = document.getElementById('kmLuigi');
+    const pc = document.getElementById('kmPeachSprite');
+    const bc = document.getElementById('kmBowser');
 
-    if (!mc && !gc) return;
+    if (!mc || !gc || !lc || !pc || !bc) return;
 
-    const mCtx = mc ? mc.getContext('2d') : null;
-    const gCtx = gc ? gc.getContext('2d') : null;
+    const mCtx = mc.getContext('2d');
+    const gCtx = gc.getContext('2d');
+    const lCtx = lc.getContext('2d');
+    const pCtx = pc.getContext('2d');
+    const bCtx = bc.getContext('2d');
 
     let frame = 0;
 
-    if (mCtx) drawMarioFrame(mCtx, 0);
-    if (gCtx) drawGoombaFrame(gCtx, 0);
-
     setInterval(() => {
       frame++;
-      if (mCtx) drawMarioFrame(mCtx, frame);
-      if (gCtx) drawGoombaFrame(gCtx, frame);
+      drawMarioFrame(mCtx, frame, false);
+      drawGoombaFrame(gCtx, frame);
+      drawMarioFrame(lCtx, frame, true);
+      drawPeachFrame(pCtx);
+      drawBowserFrame(bCtx);
     }, 180);
   }
 
-  /* ═══════════════════════════════════════
-     WORLD HTML
-  ═══════════════════════════════════════ */
-  function marioWorldHTML() {
-    const marioImg = assetImg(
-      ASSETS.mario.mario,
-      'position:absolute;left:-44px;bottom:54px;width:54px;max-height:72px;object-fit:contain;animation:km-mario-run 8s linear infinite;filter:drop-shadow(0 4px 0 rgba(0,0,0,.22));z-index:4;',
-      'Mario'
-    );
+  function launchConfetti() {
+    const colors = ['#ffd700', '#e8282b', '#1565c0', '#4caf50', '#f9a825', '#fff', '#e53935'];
+    let count = 0;
 
-    const goombaImg = assetImg(
-      ASSETS.mario.goomba,
-      'position:absolute;bottom:54px;width:42px;max-height:42px;object-fit:contain;animation:km-goomba-walk 6s linear infinite;filter:drop-shadow(0 3px 0 rgba(0,0,0,.22));z-index:3;',
-      'Goomba'
-    );
+    confettiInterval = setInterval(() => {
+      if (count++ > 120) {
+        clearInterval(confettiInterval);
+        return;
+      }
 
-    return `
-      ${ASSETS.mario.bg ? assetImg(ASSETS.mario.bg, 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.92;', 'Mario Background') : ''}
+      const p = document.createElement('div');
 
-      <div class="km-world-soft-overlay"></div>
+      p.style.cssText = `
+        position:fixed;
+        top:-16px;
+        z-index:2147483647;
+        pointer-events:none;
+        left:${Math.random() * 100}vw;
+        width:${Math.random() * 9 + 4}px;
+        height:${Math.random() * 9 + 4}px;
+        background:${colors[Math.floor(Math.random() * colors.length)]};
+        border-radius:${Math.random() > .5 ? '50%' : '2px'};
+        animation:km-confetti ${Math.random() * 2.5 + 2}s linear forwards;
+        animation-delay:${Math.random() * .5}s;
+      `;
 
-      <div style="position:absolute;top:12px;right:24px;width:54px;height:54px;border-radius:50%;background:#ffd700;border:4px solid #fff;box-shadow:0 0 0 3px #e8a000,0 6px 20px rgba(255,200,0,.5);"></div>
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 5500);
+    }, 65);
+  }
 
-      <svg style="position:absolute;top:18px;left:12px;" width="90" height="46" viewBox="0 0 90 46">
-        <ellipse cx="45" cy="37" rx="42" ry="18" fill="white"/>
-        <ellipse cx="28" cy="30" rx="22" ry="20" fill="white"/>
-        <ellipse cx="55" cy="28" rx="24" ry="22" fill="white"/>
-        <ellipse cx="40" cy="24" rx="18" ry="17" fill="white"/>
-      </svg>
+  function showToast(emoji, line1, line2, color) {
+    const t = document.createElement('div');
 
-      <svg style="position:absolute;top:22px;left:170px;" width="70" height="38" viewBox="0 0 70 38">
-        <ellipse cx="35" cy="29" rx="31" ry="13" fill="white"/>
-        <ellipse cx="22" cy="22" rx="16" ry="15" fill="white"/>
-        <ellipse cx="45" cy="21" rx="18" ry="16" fill="white"/>
-      </svg>
+    t.style.cssText = `
+      position:fixed;
+      bottom:28px;
+      left:50%;
+      transform:translateX(-50%) translateY(80px);
+      z-index:2147483645;
+      background:#fff;
+      border-radius:20px;
+      border:4px solid ${color};
+      box-shadow:0 0 0 2px #fff,0 0 0 6px ${color},0 20px 60px rgba(0,0,0,.3);
+      padding:16px 28px;
+      text-align:center;
+      font-family:'Nunito',sans-serif;
+      transition:transform .45s cubic-bezier(.34,1.5,.64,1),opacity .45s;
+      opacity:0;
+      min-width:240px;
+      pointer-events:none;
+    `;
 
-      <svg style="position:absolute;bottom:54px;left:0;right:0;width:100%;height:74px;" viewBox="0 0 360 74" preserveAspectRatio="none">
-        <ellipse cx="70" cy="104" rx="100" ry="72" fill="#4caf50"/>
-        <ellipse cx="240" cy="106" rx="115" ry="75" fill="#43a047"/>
-        <ellipse cx="340" cy="108" rx="85" ry="68" fill="#2e7d32"/>
-        <ellipse cx="55" cy="72" rx="18" ry="10" fill="#66bb6a"/>
-        <ellipse cx="220" cy="76" rx="22" ry="12" fill="#66bb6a"/>
-      </svg>
+    t.innerHTML = `
+      <div style="font-size:28px;margin-bottom:7px;">${emoji}</div>
+      <div style="font-size:14px;font-weight:900;color:${color};letter-spacing:.1em;">${line1}</div>
+      <div style="font-size:12px;font-weight:800;font-style:italic;color:rgba(0,0,0,.4);margin-top:4px;">${line2}</div>
+    `;
 
-      <div style="position:absolute;bottom:0;left:0;right:0;height:54px;background:
-        linear-gradient(#4caf50 0 13px,#2e7d32 13px 15px,transparent 15px),
-        repeating-linear-gradient(90deg,#c8860a 0,#c8860a 34px,#7a5000 34px,#7a5000 36px);
-        border-top:3px solid #fff;">
+    document.body.appendChild(t);
+
+    requestAnimationFrame(() => {
+      t.style.transform = 'translateX(-50%) translateY(0)';
+      t.style.opacity = '1';
+    });
+
+    setTimeout(() => {
+      t.style.transform = 'translateX(-50%) translateY(80px)';
+      t.style.opacity = '0';
+      setTimeout(() => t.remove(), 500);
+    }, 5000);
+  }
+
+  function launchVictoryOverlay() {
+    const overlay = document.createElement('div');
+
+    overlay.style.cssText = `
+      position:fixed;
+      top:0;
+      left:0;
+      width:100%;
+      height:100%;
+      z-index:2147483644;
+      background:rgba(92,148,252,0);
+      pointer-events:none;
+      transition:background .6s;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    `;
+
+    const card = document.createElement('div');
+
+    card.style.cssText = `
+      background:#fff;
+      border-radius:24px;
+      border:5px solid #e8282b;
+      box-shadow:
+        0 0 0 3px #fff,
+        0 0 0 8px #e8282b,
+        0 0 0 11px #fff,
+        0 0 0 15px #ffd700,
+        0 30px 80px rgba(0,0,0,.5);
+      padding:40px 50px;
+      text-align:center;
+      opacity:0;
+      transform:scale(.8) translateY(30px);
+      transition:all .55s cubic-bezier(.34,1.4,.64,1) .15s;
+      pointer-events:auto;
+      max-width:360px;
+      font-family:Nunito,sans-serif;
+    `;
+
+    card.innerHTML = `
+      <div style="font-size:48px;margin-bottom:12px;">🏁</div>
+      <div style="font-size:11px;font-weight:900;letter-spacing:.25em;text-transform:uppercase;color:rgba(0,0,0,.3);margin-bottom:10px;">LEVEL CLEAR</div>
+      <div style="font-size:52px;font-weight:900;color:#e8282b;line-height:1;margin-bottom:6px;letter-spacing:-1px;">8 GHANTE</div>
+      <div style="font-size:14px;font-weight:900;color:rgba(0,0,0,.3);letter-spacing:.2em;text-transform:uppercase;margin-bottom:18px;">COMPLETE</div>
+      <div style="font-size:16px;font-weight:800;font-style:italic;color:rgba(0,0,0,.55);line-height:1.6;margin-bottom:22px;">
+        nikal gayo bhai 🎉<br>
+        castle clear, ghar ja heve<br>
+        keka band kar!
       </div>
-
-      <div style="position:absolute;top:86px;left:106px;width:30px;height:30px;background:#e8a000;border:3px solid #fff;border-radius:6px;box-shadow:0 4px 0 #7a4800;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;animation:km-float 2s ease-in-out infinite;">?</div>
-
-      <div style="position:absolute;top:70px;left:204px;width:30px;height:30px;background:#e8a000;border:3px solid #fff;border-radius:6px;box-shadow:0 4px 0 #7a4800;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;animation:km-float 2.2s ease-in-out infinite .4s;">?</div>
-
-      <div style="position:absolute;bottom:54px;left:18px;width:44px;height:44px;background:#43a047;border:3px solid #fff;border-radius:8px 8px 0 0;box-shadow:0 0 0 2px #2e7d32,inset -4px 0 0 rgba(0,0,0,.15);"></div>
-
-      ${assetImg(ASSETS.mario.luigi, 'position:absolute;left:6px;bottom:56px;width:48px;max-height:76px;object-fit:contain;filter:drop-shadow(0 4px 0 rgba(0,0,0,.25));z-index:3;', 'Luigi')}
-
-      ${
-        marioImg ||
-        '<canvas id="kmMarioCanvas" width="44" height="58" style="position:absolute;bottom:54px;image-rendering:pixelated;animation:km-mario-run 8s linear infinite;z-index:4;"></canvas>'
-      }
-
-      ${
-        goombaImg ||
-        '<canvas id="kmGoombaCanvas" width="40" height="40" style="position:absolute;bottom:54px;image-rendering:pixelated;animation:km-goomba-walk 6s linear infinite;z-index:3;"></canvas>'
-      }
-
-      ${
-        ASSETS.mario.bowser
-          ? assetImg(ASSETS.mario.bowser, 'position:absolute;right:18px;bottom:52px;width:78px;max-height:96px;object-fit:contain;filter:drop-shadow(0 5px 0 rgba(0,0,0,.25));z-index:3;', 'Bowser')
-          : '<div style="position:absolute;right:20px;bottom:58px;width:62px;height:70px;background:#33691e;border:3px solid #fff;border-radius:16px;box-shadow:0 5px 0 rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:30px;z-index:3;">🐢</div>'
-      }
-
-      ${
-        ASSETS.mario.peach
-          ? assetImg(ASSETS.mario.peach, 'position:absolute;right:0;bottom:54px;width:46px;max-height:78px;object-fit:contain;filter:drop-shadow(0 2px 0 #fff);z-index:4;', 'Princess Peach')
-          : '<div style="position:absolute;right:4px;bottom:58px;font-size:42px;filter:drop-shadow(0 2px 0 #fff);z-index:4;">👸</div>'
-      }
+      <div style="font-size:9px;font-weight:900;letter-spacing:.2em;text-transform:uppercase;color:rgba(0,0,0,.2);">tap anywhere to close</div>
     `;
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    setTimeout(() => {
+      overlay.style.background = 'rgba(92,148,252,.75)';
+      card.style.opacity = '1';
+      card.style.transform = 'scale(1) translateY(0)';
+    }, 80);
+
+    overlay.addEventListener('click', () => {
+      overlay.style.background = 'rgba(92,148,252,0)';
+      card.style.opacity = '0';
+      card.style.transform = 'scale(.9) translateY(20px)';
+      setTimeout(() => overlay.remove(), 500);
+    });
   }
 
-  function pokemonWorldHTML() {
-    return `
-      ${ASSETS.pokemon.bg ? assetImg(ASSETS.pokemon.bg, 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.82;', 'Pokemon Background') : ''}
+  function applyVictoryTheme() {
+    const widget = document.getElementById('kekaMario');
+    if (widget) widget.style.animation = 'km-victory 3s ease-in-out infinite';
 
-      <div class="km-world-soft-overlay"></div>
+    const panel = document.getElementById('kmPanel');
+    if (panel) panel.style.background = 'linear-gradient(180deg,#ffd54f,#f9a825)';
 
-      <div style="position:absolute;left:-20px;right:-20px;bottom:0;height:64px;background:linear-gradient(180deg,#5fcf65,#2f9e44);border-top:4px solid rgba(255,255,255,.75);"></div>
+    buildCoins(100);
 
-      <div style="position:absolute;left:0;right:0;bottom:52px;height:38px;background:radial-gradient(ellipse at center,#ffffff 0 18%,transparent 19%),linear-gradient(90deg,transparent 0 48%,rgba(255,255,255,.8) 48% 52%,transparent 52%);opacity:.85;"></div>
+    const pct = document.getElementById('kmPct');
+    if (pct) {
+      pct.textContent = '100%';
+      pct.style.color = '#7a4800';
+    }
 
-      <div style="position:absolute;top:18px;right:22px;width:58px;height:58px;border-radius:50%;background:#ffcb05;border:4px solid #fff;box-shadow:0 0 0 4px #2a75bb,0 8px 24px rgba(0,0,0,.18);animation:km-pulse 2.2s ease-in-out infinite;"></div>
+    const left = document.getElementById('kmLeft');
+    if (left) {
+      left.textContent = '0h 00m';
+      left.style.color = '#fff';
+    }
 
-      ${
-        ASSETS.pokemon.trainer
-          ? assetImg(ASSETS.pokemon.trainer, 'position:absolute;left:18px;bottom:52px;width:74px;max-height:100px;object-fit:contain;filter:drop-shadow(0 4px 0 rgba(0,0,0,.2));z-index:3;', 'Pokemon Trainer')
-          : '<div style="position:absolute;left:28px;bottom:58px;font-size:70px;filter:drop-shadow(0 4px 0 rgba(0,0,0,.2));z-index:3;">🧢</div>'
-      }
+    const progress = document.getElementById('kmProgress');
+    if (progress) progress.style.width = '100%';
 
-      ${
-        ASSETS.pokemon.pokeball
-          ? assetImg(ASSETS.pokemon.pokeball, 'position:absolute;left:128px;bottom:64px;width:68px;height:68px;object-fit:contain;filter:drop-shadow(0 10px 25px rgba(0,0,0,.25));animation:km-float 2s ease-in-out infinite;z-index:4;', 'Pokeball')
-          : '<div style="position:absolute;left:128px;bottom:64px;width:68px;height:68px;border-radius:50%;background:linear-gradient(#ef4444 0 48%,#111 48% 55%,#fff 55%);border:4px solid #111;box-shadow:0 0 0 4px #fff,0 10px 25px rgba(0,0,0,.25);animation:km-float 2s ease-in-out infinite;z-index:4;"><div style="position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px;border-radius:50%;background:#fff;border:4px solid #111;"></div></div>'
-      }
+    const ticker = document.getElementById('kmTicker');
+    if (ticker) {
+      ticker.style.color = 'rgba(100,50,0,.55)';
+      ticker.textContent = 'LEVEL CLEAR ★ CASTLE VICTORY ★ CHUTTI PAKKI HAI ★ GHAR JA BHAI ★ LAPTOP BAND KAR ★';
+    }
 
-      ${
-        ASSETS.pokemon.pikachu
-          ? assetImg(ASSETS.pokemon.pikachu, 'position:absolute;right:18px;bottom:52px;width:88px;max-height:100px;object-fit:contain;filter:drop-shadow(0 5px 0 rgba(0,0,0,.2));z-index:3;', 'Pikachu')
-          : '<div style="position:absolute;right:28px;bottom:58px;font-size:72px;z-index:3;">⚡</div>'
-      }
-
-      ${
-        ASSETS.pokemon.charizard
-          ? assetImg(ASSETS.pokemon.charizard, 'position:absolute;right:90px;top:34px;width:84px;max-height:84px;object-fit:contain;opacity:.9;filter:drop-shadow(0 4px 12px rgba(0,0,0,.25));z-index:2;', 'Charizard')
-          : ''
-      }
-
-      ${
-        ASSETS.pokemon.gengar
-          ? assetImg(ASSETS.pokemon.gengar, 'position:absolute;left:218px;bottom:52px;width:66px;max-height:76px;object-fit:contain;opacity:.92;filter:drop-shadow(0 4px 12px rgba(0,0,0,.25));z-index:2;', 'Gengar')
-          : ''
-      }
-    `;
+    const vibe = document.getElementById('kmVibe');
+    if (vibe) vibe.textContent = '"flagpole clear… the realm is yours. ghar ja."';
   }
 
-  function batmanWorldHTML() {
-    return `
-      ${ASSETS.batman.cave ? assetImg(ASSETS.batman.cave, 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.72;', 'Batcave') : ''}
+  function requestNotification() {
+    if (!('Notification' in window)) return;
 
-      ${ASSETS.batman.gotham ? assetImg(ASSETS.batman.gotham, 'position:absolute;left:0;right:0;bottom:48px;width:100%;height:106px;object-fit:cover;opacity:.9;', 'Gotham Skyline') : ''}
-
-      <div class="km-rain"></div>
-      <div class="km-scanline"></div>
-
-      <div style="position:absolute;top:16px;right:28px;width:62px;height:62px;border-radius:50%;background:radial-gradient(circle,#fef3c7 0 35%,#facc15 36% 60%,rgba(250,204,21,.2) 61%);box-shadow:0 0 45px rgba(250,204,21,.55);"></div>
-
-      ${
-        ASSETS.batman.batSignal
-          ? assetImg(ASSETS.batman.batSignal, 'position:absolute;top:20px;right:20px;width:82px;max-height:82px;object-fit:contain;filter:drop-shadow(0 0 22px rgba(250,204,21,.8));z-index:3;', 'Bat Signal')
-          : ''
-      }
-
-      ${
-        ASSETS.batman.logo
-          ? assetImg(ASSETS.batman.logo, 'position:absolute;top:50px;left:50%;transform:translateX(-50%);width:138px;max-height:74px;object-fit:contain;filter:drop-shadow(0 0 18px rgba(0,0,0,.9));z-index:4;', 'Batman Logo')
-          : '<div style="position:absolute;top:64px;left:50%;transform:translateX(-50%);width:118px;height:50px;background:#000;clip-path:polygon(0 60%,18% 28%,38% 50%,50% 10%,62% 50%,82% 28%,100% 60%,75% 70%,60% 60%,50% 88%,40% 60%,25% 70%);filter:drop-shadow(0 0 18px rgba(0,0,0,.9));z-index:4;"></div>'
-      }
-
-      ${
-        ASSETS.batman.batsGif
-          ? assetImg(ASSETS.batman.batsGif, 'position:absolute;left:96px;bottom:62px;width:178px;max-height:138px;object-fit:contain;opacity:.92;filter:drop-shadow(0 0 16px rgba(0,0,0,.9));z-index:5;', 'Flying Bats')
-          : `<div style="position:absolute;left:120px;bottom:78px;width:120px;height:100px;z-index:5;">
-              ${Array.from({ length: 18 }, (_, i) => {
-                const x = -110 + (i % 9) * 28;
-                const y = -72 - (i % 6) * 18;
-                const left = 34 + (i % 5) * 12;
-                const top = 54 + (i % 4) * 8;
-                const delay = ((i * 0.19) % 2.8).toFixed(2);
-                return `<div class="km-bat" style="left:${left}px;top:${top}px;--x:${x}px;--y:${y}px;animation-delay:${delay}s;"></div>`;
-              }).join('')}
-            </div>`
-      }
-
-      ${
-        ASSETS.batman.batman
-          ? assetImg(ASSETS.batman.batman, 'position:absolute;left:26px;bottom:48px;width:108px;max-height:136px;object-fit:contain;filter:drop-shadow(0 0 24px rgba(0,0,0,.95));z-index:4;', 'Batman')
-          : '<div style="position:absolute;left:38px;bottom:52px;width:88px;height:118px;background:#000;clip-path:polygon(50% 0,64% 18%,82% 24%,100% 100%,66% 84%,50% 100%,34% 84%,0 100%,18% 24%,36% 18%);filter:drop-shadow(0 0 24px rgba(0,0,0,.95));z-index:4;"><div style="position:absolute;top:22px;left:38px;width:4px;height:2px;background:#fef3c7;box-shadow:10px 0 #fef3c7;"></div></div>'
-      }
-
-      ${
-        ASSETS.batman.batarang
-          ? assetImg(ASSETS.batman.batarang, 'position:absolute;right:34px;bottom:58px;width:58px;max-height:58px;object-fit:contain;opacity:.85;filter:drop-shadow(0 0 12px rgba(250,204,21,.35));z-index:4;', 'Batarang')
-          : ''
-      }
-
-      <div style="position:absolute;bottom:0;left:0;right:0;height:52px;background:linear-gradient(180deg,#111827,#020617);border-top:2px solid rgba(250,204,21,.25);"></div>
-    `;
+    if (Notification.permission === 'default') {
+      setTimeout(() => Notification.requestPermission(), 3000);
+    }
   }
 
-  function viceWorldHTML() {
-    return `
-      ${ASSETS.vice.sky ? assetImg(ASSETS.vice.sky, 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.58;', 'Vice City Sky') : ''}
+  function fireNotification() {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
-      ${ASSETS.vice.bg ? assetImg(ASSETS.vice.bg, 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.62;', 'Vice City Background') : ''}
+    try {
+      const n = new Notification('🏁 Level Clear — 8 Ghante Pure!', {
+        body: 'Ab punchout ka time aa gaya bhai — Cursor band kar.',
+        tag: 'keka-8hr',
+        requireInteraction: true
+      });
 
-      ${ASSETS.vice.neonGrid ? assetImg(ASSETS.vice.neonGrid, 'position:absolute;left:0;right:0;bottom:0;width:100%;height:96px;object-fit:cover;opacity:.72;', 'Neon Grid') : ''}
-
-      <div class="km-scanline"></div>
-
-      <div style="position:absolute;inset:0;background:
-        radial-gradient(circle at 25% 22%,rgba(34,211,238,.35),transparent 24%),
-        radial-gradient(circle at 80% 30%,rgba(236,72,153,.32),transparent 24%),
-        linear-gradient(180deg,rgba(43,16,85,.2),rgba(0,0,0,.18));
-      "></div>
-
-      <div style="position:absolute;left:0;right:0;bottom:0;height:58px;background:linear-gradient(180deg,rgba(15,23,42,.25),#020617);border-top:2px solid rgba(34,211,238,.6);box-shadow:0 -10px 30px rgba(236,72,153,.25);"></div>
-
-      ${
-        ASSETS.vice.logo
-          ? assetImg(ASSETS.vice.logo, 'position:absolute;left:14px;top:14px;width:124px;max-height:66px;object-fit:contain;filter:drop-shadow(0 0 12px #ff4fd8) drop-shadow(0 0 22px #00e5ff);z-index:4;', 'Vice City Logo')
-          : '<div class="km-neon-text" style="position:absolute;left:18px;top:18px;font-size:30px;font-weight:950;font-style:italic;color:#fff;letter-spacing:.08em;z-index:4;">VICE</div>'
-      }
-
-      ${
-        ASSETS.vice.palm
-          ? assetImg(ASSETS.vice.palm, 'position:absolute;left:18px;bottom:48px;width:82px;max-height:130px;object-fit:contain;filter:drop-shadow(0 0 16px rgba(34,211,238,.35));z-index:3;', 'Palm Tree')
-          : '<div style="position:absolute;left:26px;bottom:48px;font-size:76px;filter:drop-shadow(0 0 16px rgba(34,211,238,.35));z-index:3;">🌴</div>'
-      }
-
-      ${
-        ASSETS.vice.tommy
-          ? assetImg(ASSETS.vice.tommy, 'position:absolute;right:12px;bottom:48px;width:116px;max-height:144px;object-fit:contain;filter:drop-shadow(0 0 20px rgba(236,72,153,.55));z-index:4;', 'Tommy Vercetti')
-          : '<div style="position:absolute;right:18px;bottom:52px;width:100px;height:132px;background:linear-gradient(180deg,#111,#2dd4bf 0 35%,#f472b6 35% 70%,#111 70%);clip-path:polygon(38% 0,62% 0,72% 18%,70% 100%,30% 100%,28% 18%);filter:drop-shadow(0 0 20px rgba(236,72,153,.5));opacity:.9;z-index:4;"></div>'
-      }
-
-      ${
-        ASSETS.vice.car
-          ? assetImg(ASSETS.vice.car, 'position:absolute;left:118px;bottom:42px;width:112px;max-height:58px;object-fit:contain;filter:drop-shadow(0 0 18px rgba(34,211,238,.45));z-index:4;', 'Vice City Car')
-          : ''
-      }
-
-      ${
-        ASSETS.vice.neonSign
-          ? assetImg(ASSETS.vice.neonSign, 'position:absolute;right:110px;top:64px;width:92px;max-height:64px;object-fit:contain;filter:drop-shadow(0 0 14px rgba(236,72,153,.75));z-index:4;', 'Neon Sign')
-          : ''
-      }
-    `;
+      n.onclick = () => {
+        window.focus();
+        n.close();
+      };
+    } catch (e) {}
   }
 
-  function worldHTML() {
-    if (CURRENT_THEME === 'pokemon') return pokemonWorldHTML();
-    if (CURRENT_THEME === 'batman') return batmanWorldHTML();
-    if (CURRENT_THEME === 'vice') return viceWorldHTML();
-    return marioWorldHTML();
+  function startTitleFlash() {
+    if (titleFlashInterval) return;
+
+    let t = false;
+
+    titleFlashInterval = setInterval(() => {
+      document.title = t
+        ? '🏁 Level Clear! Ghar Ja!'
+        : '✅ 8hrs Done — Nikal Bhai!';
+      t = !t;
+    }, 1300);
   }
-  const ASSETS = {
-  mario: {
-    mario: '',
-    luigi: '',
-    bowser: '',
-    peach: '',
-    goomba: '',
-    bg: '',
-    pipe: '',
-    block: '',
-    coin: '',
-    star: '',
-    castle: '',
-    coinGif: '',
-    victoryGif: ''
-  },
 
-  pokemon: {
-    pikachu: '',
-    charizard: '',
-    gengar: '',
-    trainer: '',
-    pokeball: '',
-    greatball: '',
-    badge: '',
-    potion: '',
-    bg: '',
-    grass: '',
-    arena: '',
-    captureGif: '',
-    victoryGif: ''
-  },
+  function updateUI() {
+    const data = window.KekaHoursLatest;
+    if (!data) return;
 
-  batman: {
-    logo: '',
-    batman: '',
-    batSignal: '',
-    batsGif: '',
-    gotham: '',
-    cave: '',
-    rain: '',
-    moon: '',
-    batarang: '',
-    jokerCard: '',
-    arkhamLogo: '',
-    smokeGif: '',
-    lightningGif: ''
-  },
+    const { totalMinutes, breakMinutes, firstStart } = data;
 
-  vice: {
-    logo: '',
-    tommy: '',
-    car: '',
-    palm: '',
-    bg: '',
-    sky: '',
-    neonGrid: '',
-    oceanDrive: '',
-    cassette: '',
-    sunglasses: '',
-    neonSign: '',
-    sunsetGif: '',
-    neonGif: ''
+    const remaining = WORK_MINUTES - totalMinutes;
+    const pct = Math.min(100, (totalMinutes / WORK_MINUTES) * 100);
+
+    const H = Math.floor(totalMinutes / 60);
+    const M = totalMinutes % 60;
+
+    const set = (id, v) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = v;
+    };
+
+    set('kmHours', H);
+    set('kmMins', String(M).padStart(2, '0'));
+    set('kmWorked', `${H}h ${String(M).padStart(2, '0')}m`);
+
+    if (!eightHourTriggered) {
+      set(
+        'kmLeft',
+        `${Math.floor(Math.max(0, remaining) / 60)}h ${String(Math.max(0, remaining) % 60).padStart(2, '0')}m`
+      );
+    }
+
+    set(
+      'kmBreak',
+      `${Math.floor(breakMinutes / 60)}h ${String(breakMinutes % 60).padStart(2, '0')}m`
+    );
+
+    if (!eightHourTriggered) {
+      buildCoins(Math.floor(pct));
+      set('kmPct', Math.floor(pct) + '%');
+
+      const progress = document.getElementById('kmProgress');
+      if (progress) progress.style.width = Math.floor(pct) + '%';
+
+      const vibe = document.getElementById('kmVibe');
+      if (vibe) vibe.textContent = getVibe(pct);
+    }
+
+    if (firstStart) {
+      const st = parseTime(firstStart);
+
+      if (st) {
+        const base = new Date();
+        base.setHours(st.hours, st.minutes, 0, 0);
+
+        set(
+          'kmHalf',
+          fmtTime(new Date(base.getTime() + (HALF_DAY_MINUTES + breakMinutes) * 60000))
+        );
+
+        if (!eightHourTriggered) {
+          set(
+            'kmFull',
+            fmtTime(new Date(base.getTime() + (WORK_MINUTES + breakMinutes) * 60000))
+          );
+        }
+      }
+    }
+
+    const widget = document.getElementById('kekaMario');
+
+    if (widget && remaining <= 30 && remaining > 0 && !eightHourTriggered) {
+      widget.style.animation = 'km-warn 2s ease-in-out infinite';
+    }
+
+    if (remaining <= 10 && remaining > 0 && !tenMinTriggered) {
+      tenMinTriggered = true;
+      showToast(
+        '⏳',
+        'SIRF 10 MINUTE',
+        'bas thodi der aur, fir majdoori si azaadi…',
+        '#e65100'
+      );
+    }
+
+    if (totalMinutes >= WORK_MINUTES && !eightHourTriggered) {
+      eightHourTriggered = true;
+      launchConfetti();
+      launchVictoryOverlay();
+      applyVictoryTheme();
+      fireNotification();
+      startTitleFlash();
+      showToast(
+        '🏁',
+        'LEVEL CLEAR',
+        '8 ghante pure — nikal jaa meri jaan',
+        '#ffd700'
+      );
+    }
   }
-};
+
+  function findLogs() {
+    return document.querySelector('[formarrayname="logs"],[formArrayName="logs"]');
+  }
+
+  const observer = new MutationObserver(() => {
+    const c = findLogs();
+    if (c) processLogs(c);
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
+  createUI();
+  requestNotification();
+
+  setInterval(() => {
+    const c = findLogs();
+    if (c) processLogs(c);
+    updateUI();
+  }, 1000);
+})();
