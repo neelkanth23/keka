@@ -1,5 +1,5 @@
 // ╔══════════════════════════════════════════════════════════╗
-// ║   KEKA GRIND TRACKER — MARIO EDITION  (OPTIMISED v2)    ║
+// ║   KEKA GRIND TRACKER — MARIO EDITION      ║
 // ║   Paste in browser console on your Keka attendance page  ║
 // ╚══════════════════════════════════════════════════════════╝
 (function () {
