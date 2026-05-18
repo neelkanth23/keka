@@ -229,6 +229,4 @@
   updateUI();
   setInterval(updateUI, 20000);
 
-  console.log('%c🎮 KEKA GRIND TRACKER LOADED (ALERT-FREE)', 'color:#22c55e;font-size:16px;font-weight:bold;');
-
 })();
