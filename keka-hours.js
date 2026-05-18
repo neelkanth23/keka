@@ -54,8 +54,22 @@
     if (!st || !en) return 0;
     let m = (en.hours - st.hours) * 60 + (en.minutes - st.minutes);
     if (m < 0)   m += 1440;
-    if (m > 720) m = 0;
+    // Cap at 16 hours max for a single session — anything more is a parse error
+    if (m > 960) return 0;
     return m;
+  }
+
+  // Extract ONLY a time string (e.g. "10:02 am") from an element's text.
+  // Strips any surrounding label text like "Check In", "Check Out", etc.
+  function extractTime(el) {
+    if (!el) return null;
+    const raw = el.textContent.trim();
+    // Match "HH:MM am/pm" or "H:MM am/pm" anywhere in the string
+    const match = raw.match(/\b(\d{1,2}:\d{2})\s*(am|pm)\b/i);
+    if (match) return `${match[1]} ${match[2].toLowerCase()}`;
+    // Also handle "MISSING" keyword
+    if (/MISSING/i.test(raw)) return 'MISSING';
+    return null;
   }
 
   function fmtTime(d) {
@@ -66,55 +80,62 @@
   function processLogs(container) {
     if (!container) return;
     const rows = Array.from(container.querySelectorAll('.ng-untouched.ng-pristine.ng-valid'));
+    if (rows.length === 0) return;
 
     let totalM = 0, breakM = 0, firstStart = null, prevEnd = null, activeStart = null;
 
     rows.forEach((row, idx) => {
-      const startEl = row.querySelector('.w-120.mr-20 .text-small') || row.querySelector('.w-120.mr-20');
-      const endEl   = row.querySelector('.w-120:not(.mr-20) .text-small') || row.querySelector('.w-120:not(.mr-20)');
-      const s = startEl?.textContent.trim() ?? null;
-      const e = endEl?.textContent.trim()   ?? null;
+      // Try the most specific selector first (.text-small inside the column),
+      // then fall back to the column itself — but always extract only the time
+      // portion via extractTime() to strip label noise.
+      const startCol = row.querySelector('.w-120.mr-20 .text-small') ||
+                       row.querySelector('.w-120.mr-20');
+      const endCol   = row.querySelector('.w-120:not(.mr-20) .text-small') ||
+                       row.querySelector('.w-120:not(.mr-20)');
 
-      // firstStart = the start time of the very first row, regardless of whether
-      // that row has a MISSING end. This is the anchor for half-day/full-day calc.
+      const s = extractTime(startCol);
+      const e = extractTime(endCol);
+
+      // Skip rows where the start time couldn't be parsed at all
+      if (!s) return;
+
       if (idx === 0) firstStart = s;
       if (idx !== 0 && prevEnd && s) breakM += minutesBetween(prevEnd, s);
 
       if (e === 'MISSING') {
         activeStart = s;
-        // If this is also the first row, firstStart is already set above — good.
-      } else {
-        totalM += minutesBetween(s, e);
-        prevEnd = e;
+      } else if (e) {
+        const span = minutesBetween(s, e);
+        // Sanity check: a single session shouldn't be more than 12 hours
+        if (span >= 0 && span <= 720) {
+          totalM += span;
+          prevEnd = e;
+        }
       }
     });
 
+    // Live session: add minutes from activeStart until now
     if (activeStart) {
       const st = parseTime(activeStart);
       if (st) {
         const now  = new Date();
-        const live = (now.getHours() - st.hours) * 60 + (now.getMinutes() - st.minutes);
-        if (live > 0) totalM += live;
+        // Use actual Date math to avoid midnight-crossing errors
+        const startDate = new Date();
+        startDate.setHours(st.hours, st.minutes, 0, 0);
+        const live = Math.floor((now - startDate) / 60000);
+        // Only add if live is positive and sane (< 16 hours)
+        if (live > 0 && live < 960) totalM += live;
       }
     }
 
-    // Last-resort fallback: if we still have no firstStart but we know when the
-    // active session began, derive firstStart from activeStart so the half-day /
-    // majdoori-khatam fields always show a time.
+    // Fallback: derive firstStart from activeStart if needed
     if (!firstStart && activeStart) firstStart = activeStart;
 
-    // Ultimate fallback: if no rows at all were found, back-calculate the
-    // implied start from now minus however many minutes have been counted.
-    if (!firstStart && totalM > 0) {
-      const implied = new Date(Date.now() - totalM * 60000);
-      const hh = String(implied.getHours()).padStart(2,'0');
-      const mm = String(implied.getMinutes()).padStart(2,'0');
-      const ap = implied.getHours() >= 12 ? 'pm' : 'am';
-      const h12 = implied.getHours() % 12 || 12;
-      firstStart = `${String(h12).padStart(2,'0')}:${mm} ${ap}`;
-    }
+    // Sanity cap: totalM should never exceed 24 hours
+    totalM = Math.min(totalM, 1440);
 
     window.KekaHoursLatest = { totalMinutes: totalM, breakMinutes: breakM, firstStart };
+    // Uncomment to debug in console: console.debug('[Keka]', window.KekaHoursLatest);
   }
 
   // ─── vibe text ────────────────────────────────────────────────────────────────
