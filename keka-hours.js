@@ -75,11 +75,14 @@
       const s = startEl?.textContent.trim() ?? null;
       const e = endEl?.textContent.trim()   ?? null;
 
+      // firstStart = the start time of the very first row, regardless of whether
+      // that row has a MISSING end. This is the anchor for half-day/full-day calc.
       if (idx === 0) firstStart = s;
       if (idx !== 0 && prevEnd && s) breakM += minutesBetween(prevEnd, s);
 
       if (e === 'MISSING') {
         activeStart = s;
+        // If this is also the first row, firstStart is already set above — good.
       } else {
         totalM += minutesBetween(s, e);
         prevEnd = e;
@@ -89,10 +92,26 @@
     if (activeStart) {
       const st = parseTime(activeStart);
       if (st) {
-        const now = new Date();
+        const now  = new Date();
         const live = (now.getHours() - st.hours) * 60 + (now.getMinutes() - st.minutes);
         if (live > 0) totalM += live;
       }
+    }
+
+    // Last-resort fallback: if we still have no firstStart but we know when the
+    // active session began, derive firstStart from activeStart so the half-day /
+    // majdoori-khatam fields always show a time.
+    if (!firstStart && activeStart) firstStart = activeStart;
+
+    // Ultimate fallback: if no rows at all were found, back-calculate the
+    // implied start from now minus however many minutes have been counted.
+    if (!firstStart && totalM > 0) {
+      const implied = new Date(Date.now() - totalM * 60000);
+      const hh = String(implied.getHours()).padStart(2,'0');
+      const mm = String(implied.getMinutes()).padStart(2,'0');
+      const ap = implied.getHours() >= 12 ? 'pm' : 'am';
+      const h12 = implied.getHours() % 12 || 12;
+      firstStart = `${String(h12).padStart(2,'0')}:${mm} ${ap}`;
     }
 
     window.KekaHoursLatest = { totalMinutes: totalM, breakMinutes: breakM, firstStart };
@@ -654,16 +673,20 @@
 
     buildCoins(pct);   // no-ops if lit count unchanged
 
-    if (data.firstStart) {
-      const st = parseTime(data.firstStart);
-      if (st) {
-        const base  = new Date();
-        base.setHours(st.hours, st.minutes, 0, 0);
-        const half  = new Date(base.getTime() + (HALF_DAY_MINUTES + breaks) * 60000);
-        const full  = new Date(base.getTime() + (WORK_MINUTES     + breaks) * 60000);
-        setIfChanged(refs.half, fmtTime(half));
-        setIfChanged(refs.full, fmtTime(full));
-      }
+    // Always attempt to show Half Day + Majdoori Khatam times.
+    // firstStart is now guaranteed to be set whenever any log row exists,
+    // so this block will run as soon as punch-in is detected.
+    const st = data.firstStart ? parseTime(data.firstStart) : null;
+    if (st) {
+      const base = new Date();
+      base.setHours(st.hours, st.minutes, 0, 0);
+      const half = new Date(base.getTime() + (HALF_DAY_MINUTES + breaks) * 60000);
+      const full = new Date(base.getTime() + (WORK_MINUTES     + breaks) * 60000);
+      setIfChanged(refs.half, fmtTime(half));
+      setIfChanged(refs.full, fmtTime(full));
+    } else {
+      setIfChanged(refs.half, '--:--');
+      setIfChanged(refs.full, '--:--');
     }
 
     if (left <= 10 && left > 0) warnTenMinutes(left);
