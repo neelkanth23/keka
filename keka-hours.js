@@ -37,16 +37,16 @@
   let lastScanTime = 0;
   const SCAN_THROTTLE_MS = 3_000;
 
-  // ─── time helpers ─────────────────────────────────────────────────────────────
+  // ─── data processing ──────────────────────────────────────────────────────────
 
   /**
-   * Parse a time string like "10:02 am" or "01:06 PM" into total minutes since midnight.
-   * Returns null if parsing fails.
+   * Parse a time string like "10:02 am" into total minutes since midnight.
+   * Accepts both input .value and textContent formats from Keka's DOM.
+   * Returns null on failure.
    */
   function parseTimeToMinutes(ts) {
-    if (!ts || ts === 'MISSING') return null;
-    const cleaned = ts.trim().toLowerCase();
-    // Match formats: "10:02 am", "10:02am", "1:06 pm"
+    if (!ts || /^missing$/i.test(ts.trim())) return null;
+    const cleaned = ts.trim().toLowerCase().replace(/\s+/g, ' ');
     const match = cleaned.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/);
     if (!match) return null;
     let H = parseInt(match[1], 10);
@@ -58,32 +58,21 @@
     return H * 60 + M;
   }
 
-  /**
-   * Returns minutes between two time strings.
-   * end must be after start (same day, no overnight support beyond 12h guard).
-   * Returns 0 if either is unparseable or result is negative/implausible.
-   */
   function minutesBetween(startStr, endStr) {
     const s = parseTimeToMinutes(startStr);
     const e = parseTimeToMinutes(endStr);
     if (s === null || e === null) return 0;
     const diff = e - s;
-    // Guard: must be positive and less than 12 hours (720 min) to be a valid single session
     if (diff <= 0 || diff > 720) return 0;
     return diff;
   }
 
-  /**
-   * Calculate live minutes from a start time string to right now.
-   * Returns 0 if unparseable or result is negative/implausible.
-   */
   function liveMinutesFrom(startStr) {
     const s = parseTimeToMinutes(startStr);
     if (s === null) return 0;
     const now = new Date();
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    const diff = nowMinutes - s;
-    // Must be positive (started in the past) and less than 14 hours (840 min)
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    const diff = nowMins - s;
     if (diff <= 0 || diff > 840) return 0;
     return diff;
   }
@@ -92,48 +81,159 @@
     return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
   }
 
-  // ─── data processing ──────────────────────────────────────────────────────────
-  function processLogs(container) {
-    if (!container) return;
-    const rows = Array.from(container.querySelectorAll('.ng-untouched.ng-pristine.ng-valid'));
+  /**
+   * Extract time pairs from Keka's biometric log panel.
+   *
+   * Keka renders each log row with two time inputs (checkin + checkout).
+   * The checkout can be a red "MISSING" button for an open session.
+   *
+   * Approach: scan ALL inputs on the page, exclude our own widget,
+   * collect those whose value is a valid time string, then pair them up
+   * sequentially. Also handle standalone MISSING buttons.
+   */
+  function extractLogPairs() {
+    const pairs = [];
+
+    // ── Collect all time-valued inputs on the page (excluding our widget) ──────
+    const allInputs = Array.from(document.querySelectorAll('input'))
+      .filter(el => !el.closest('#kekaMario'));
+
+    const timeInputs = allInputs.filter(el => {
+      const v = (el.value || '').trim();
+      return parseTimeToMinutes(v) !== null;
+    });
+
+    if (timeInputs.length === 0) {
+      // ── Fallback: read from visible text nodes ─────────────────────────────
+      // Some Keka builds render times as text, not input values.
+      const timeRegex = /^\d{1,2}:\d{2}\s*(am|pm)$/i;
+      const allEls = Array.from(document.querySelectorAll('span, div, td, p'))
+        .filter(el => {
+          if (el.closest('#kekaMario')) return false;
+          // Leaf-ish nodes only (no more than 2 children)
+          if (el.children.length > 2) return false;
+          const t = (el.textContent || '').trim();
+          return timeRegex.test(t);
+        });
+
+      // Deduplicate: skip elements that are ancestors of other matching elements
+      const leafEls = allEls.filter(el => !allEls.some(other => other !== el && el.contains(other)));
+
+      // Pair them up, also check if the next sibling is a MISSING button
+      for (let i = 0; i < leafEls.length; i++) {
+        const s = (leafEls[i].textContent || '').trim();
+        if (parseTimeToMinutes(s) === null) continue;
+
+        // Look for the checkout — next matching element, or MISSING nearby
+        if (i + 1 < leafEls.length) {
+          const e = (leafEls[i + 1].textContent || '').trim();
+          pairs.push({ s, e: parseTimeToMinutes(e) !== null ? e : 'MISSING' });
+          i++; // consume the checkout element
+        } else {
+          pairs.push({ s, e: 'MISSING' });
+        }
+      }
+      return pairs;
+    }
+
+    // ── Group inputs by their parent row ──────────────────────────────────────
+    // Walk up the DOM from each input to find a common "row" ancestor.
+    // Two inputs that share the same row ancestor = one log entry.
+    function getRowAncestor(el) {
+      let node = el.parentElement;
+      for (let i = 0; i < 8; i++) {
+        if (!node || node === document.body) break;
+        // A row typically has 2–4 direct children and contains both inputs
+        const inputsInNode = node.querySelectorAll('input');
+        if (inputsInNode.length >= 2) return node;
+        node = node.parentElement;
+      }
+      return el.parentElement; // fallback to immediate parent
+    }
+
+    // Map: rowAncestor → [inputs in that row]
+    const rowMap = new Map();
+    for (const inp of timeInputs) {
+      const row = getRowAncestor(inp);
+      if (!rowMap.has(row)) rowMap.set(row, []);
+      rowMap.get(row).push(inp);
+    }
+
+    for (const [row, inputs] of rowMap) {
+      // Sort inputs by DOM order (left = checkin, right = checkout)
+      inputs.sort((a, b) => {
+        const pos = a.compareDocumentPosition(b);
+        return (pos & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : 1;
+      });
+
+      const s = (inputs[0].value || '').trim();
+      if (parseTimeToMinutes(s) === null) continue;
+
+      let e = 'MISSING';
+      if (inputs.length >= 2) {
+        const v2 = (inputs[1].value || '').trim();
+        if (parseTimeToMinutes(v2) !== null) e = v2;
+      }
+
+      // If no valid checkout from inputs, check if row has a MISSING indicator
+      if (e === 'MISSING' && inputs.length >= 2) {
+        // Double-check: maybe inputs[1] genuinely has no value yet
+        // (not an error — just an open session)
+      }
+
+      // Also check for rows where a separate "MISSING" button is present
+      // but might not be captured as an input
+      if (e === 'MISSING' && !/missing/i.test(row.textContent || '')) {
+        // No MISSING text and no valid checkout — skip ambiguous rows
+        if (inputs.length < 2) continue;
+      }
+
+      pairs.push({ s, e });
+    }
+
+    // Sort pairs by start time (ascending) so we process chronologically
+    pairs.sort((a, b) => (parseTimeToMinutes(a.s) || 0) - (parseTimeToMinutes(b.s) || 0));
+
+    return pairs;
+  }
+
+  function processLogs() {
+    const pairs = extractLogPairs();
+    if (pairs.length === 0) return; // nothing found — keep last known data
 
     let totalM = 0, breakM = 0, firstStart = null, prevEnd = null, activeStart = null;
 
-    rows.forEach((row, idx) => {
-      const startEl = row.querySelector('.w-120.mr-20 .text-small') || row.querySelector('.w-120.mr-20');
-      const endEl   = row.querySelector('.w-120:not(.mr-20) .text-small') || row.querySelector('.w-120:not(.mr-20)');
-      const s = startEl?.textContent.trim() ?? null;
-      const e = endEl?.textContent.trim()   ?? null;
+    pairs.forEach(({ s, e }, idx) => {
+      if (parseTimeToMinutes(s) === null) return;
 
-      if (!s) return; // skip rows with no start time
+      if (firstStart === null) firstStart = s;
 
-      if (idx === 0) firstStart = s;
-
-      // Accumulate break time between previous checkout and this checkin
-      if (idx !== 0 && prevEnd && s && prevEnd !== 'MISSING') {
+      // Break time = gap between last checkout and this checkin
+      if (idx > 0 && prevEnd && prevEnd !== 'MISSING') {
         const b = minutesBetween(prevEnd, s);
-        breakM += b;
+        if (b > 0) breakM += b;
       }
 
-      if (e === 'MISSING' || !e) {
-        // Still clocked in — accumulate live time from this checkin to now
+      const isMissing = (e === 'MISSING' || !e || parseTimeToMinutes(e) === null);
+
+      if (isMissing) {
         activeStart = s;
       } else {
-        // Completed session
         const sessionMins = minutesBetween(s, e);
-        totalM += sessionMins;
+        if (sessionMins > 0) totalM += sessionMins;
         prevEnd = e;
-        activeStart = null; // reset; only the last MISSING entry counts
+        activeStart = null;
       }
     });
 
-    // Add live time for the currently active (open) session
     if (activeStart) {
       const live = liveMinutesFrom(activeStart);
-      totalM += live;
+      if (live > 0) totalM += live;
     }
 
     window.KekaHoursLatest = { totalMinutes: totalM, breakMinutes: breakM, firstStart };
+    // Debug: uncomment to verify in console
+    // console.log('[KekaTracker] pairs:', pairs, 'total:', totalM, 'break:', breakM);
   }
 
   // ─── vibe text ────────────────────────────────────────────────────────────────
@@ -713,15 +813,8 @@
     const now = Date.now();
     if (now - lastScanTime < SCAN_THROTTLE_MS) return;
     lastScanTime = now;
-
-    // Only scan the actual attendance containers, not the whole body
-    const containers = document.querySelectorAll('attendance-logs, .attendance-logs');
-    if (containers.length > 0) {
-      containers.forEach(processLogs);
-    } else {
-      // Fallback: scan body but only if no dedicated containers found
-      processLogs(document.body);
-    }
+    // processLogs now handles its own full-document search via extractLogPairs()
+    processLogs();
     updateUI();
   }
 
@@ -736,13 +829,9 @@
     // MutationObserver — debounced so rapid DOM bursts become a single scan
     const obs = new MutationObserver(() => {
       clearTimeout(mutationTimer);
-      mutationTimer = setTimeout(scan, 500);   // wait 500 ms for burst to settle
+      mutationTimer = setTimeout(scan, 500);
     });
-
-    // Watch only the attendance container if it exists, else body
-    // This dramatically narrows the surface area
-    const target = document.querySelector('attendance-logs, .attendance-logs') || document.body;
-    obs.observe(target, { childList: true, subtree: true, characterData: true });
+    obs.observe(document.body, { childList: true, subtree: true, characterData: true });
   }
 
   if (document.readyState === 'loading') {
