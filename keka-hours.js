@@ -1,4 +1,4 @@
-```javascript
+
 // ╔══════════════════════════════════════════════════════════╗
 // ║   KEKA GRIND TRACKER — BUG FIXED VERSION               ║
 // ║   Fixed premature 8-hour completion issue              ║
