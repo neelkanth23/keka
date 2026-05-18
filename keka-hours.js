@@ -38,24 +38,54 @@
   const SCAN_THROTTLE_MS = 3_000;
 
   // ─── time helpers ─────────────────────────────────────────────────────────────
-  function parseTime(ts) {
+
+  /**
+   * Parse a time string like "10:02 am" or "01:06 PM" into total minutes since midnight.
+   * Returns null if parsing fails.
+   */
+  function parseTimeToMinutes(ts) {
     if (!ts || ts === 'MISSING') return null;
-    const parts = ts.toLowerCase().split(' ').filter(Boolean);
-    if (parts.length < 2) return null;
-    let [H, M] = parts[0].split(':').map(Number);
-    const ap = parts[1];
+    const cleaned = ts.trim().toLowerCase();
+    // Match formats: "10:02 am", "10:02am", "1:06 pm"
+    const match = cleaned.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/);
+    if (!match) return null;
+    let H = parseInt(match[1], 10);
+    const M = parseInt(match[2], 10);
+    const ap = match[3];
     if (ap === 'pm' && H !== 12) H += 12;
     if (ap === 'am' && H === 12) H = 0;
-    return { hours: H, minutes: M };
+    if (H < 0 || H > 23 || M < 0 || M > 59) return null;
+    return H * 60 + M;
   }
 
-  function minutesBetween(s, e) {
-    const st = parseTime(s), en = parseTime(e);
-    if (!st || !en) return 0;
-    let m = (en.hours - st.hours) * 60 + (en.minutes - st.minutes);
-    if (m < 0)   m += 1440;
-    if (m > 720) m = 0;
-    return m;
+  /**
+   * Returns minutes between two time strings.
+   * end must be after start (same day, no overnight support beyond 12h guard).
+   * Returns 0 if either is unparseable or result is negative/implausible.
+   */
+  function minutesBetween(startStr, endStr) {
+    const s = parseTimeToMinutes(startStr);
+    const e = parseTimeToMinutes(endStr);
+    if (s === null || e === null) return 0;
+    const diff = e - s;
+    // Guard: must be positive and less than 12 hours (720 min) to be a valid single session
+    if (diff <= 0 || diff > 720) return 0;
+    return diff;
+  }
+
+  /**
+   * Calculate live minutes from a start time string to right now.
+   * Returns 0 if unparseable or result is negative/implausible.
+   */
+  function liveMinutesFrom(startStr) {
+    const s = parseTimeToMinutes(startStr);
+    if (s === null) return 0;
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const diff = nowMinutes - s;
+    // Must be positive (started in the past) and less than 14 hours (840 min)
+    if (diff <= 0 || diff > 840) return 0;
+    return diff;
   }
 
   function fmtTime(d) {
@@ -75,24 +105,32 @@
       const s = startEl?.textContent.trim() ?? null;
       const e = endEl?.textContent.trim()   ?? null;
 
-      if (idx === 0) firstStart = s;
-      if (idx !== 0 && prevEnd && s) breakM += minutesBetween(prevEnd, s);
+      if (!s) return; // skip rows with no start time
 
-      if (e === 'MISSING') {
+      if (idx === 0) firstStart = s;
+
+      // Accumulate break time between previous checkout and this checkin
+      if (idx !== 0 && prevEnd && s && prevEnd !== 'MISSING') {
+        const b = minutesBetween(prevEnd, s);
+        breakM += b;
+      }
+
+      if (e === 'MISSING' || !e) {
+        // Still clocked in — accumulate live time from this checkin to now
         activeStart = s;
       } else {
-        totalM += minutesBetween(s, e);
+        // Completed session
+        const sessionMins = minutesBetween(s, e);
+        totalM += sessionMins;
         prevEnd = e;
+        activeStart = null; // reset; only the last MISSING entry counts
       }
     });
 
+    // Add live time for the currently active (open) session
     if (activeStart) {
-      const st = parseTime(activeStart);
-      if (st) {
-        const now = new Date();
-        const live = (now.getHours() - st.hours) * 60 + (now.getMinutes() - st.minutes);
-        if (live > 0) totalM += live;
-      }
+      const live = liveMinutesFrom(activeStart);
+      totalM += live;
     }
 
     window.KekaHoursLatest = { totalMinutes: totalM, breakMinutes: breakM, firstStart };
@@ -655,10 +693,10 @@
     buildCoins(pct);   // no-ops if lit count unchanged
 
     if (data.firstStart) {
-      const st = parseTime(data.firstStart);
-      if (st) {
+      const s = parseTimeToMinutes(data.firstStart);
+      if (s !== null) {
         const base  = new Date();
-        base.setHours(st.hours, st.minutes, 0, 0);
+        base.setHours(Math.floor(s / 60), s % 60, 0, 0);
         const half  = new Date(base.getTime() + (HALF_DAY_MINUTES + breaks) * 60000);
         const full  = new Date(base.getTime() + (WORK_MINUTES     + breaks) * 60000);
         setIfChanged(refs.half, fmtTime(half));
