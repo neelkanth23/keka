@@ -1,23 +1,22 @@
-// ╔══════════════════════════════════════════════════════════════════╗
-// ║   KEKA GRIND TRACKER — CINEMATIC DUAL THEME EDITION             ║
-// ║   MARIO + SPIDER-MAN AAA NYC EXPERIENCE                         ║
-// ║   PART 1 / 3                                                     ║
-// ╚══════════════════════════════════════════════════════════════════╝
+// ╔══════════════════════════════════════════════════════════════╗
+// ║   KEKA CINEMATIC TRACKER — CORE ENGINE                      ║
+// ║   PART 1 / 3                                                ║
+// ╚══════════════════════════════════════════════════════════════╝
 
 (function () {
 
 'use strict';
 
-if (window.__KEKA_CINEMATIC__) {
-    console.log('Keka Cinematic Tracker already running.');
+if (window.__KEKA_HERO_TRACKER__) {
+    console.log('Already running.');
     return;
 }
 
-window.__KEKA_CINEMATIC__ = true;
+window.__KEKA_HERO_TRACKER__ = true;
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 // THEME SELECTOR
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 
 const TODAY_DATE = new Date().getDate();
 
@@ -26,42 +25,40 @@ const THEME =
         ? 'spiderman'
         : 'mario';
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 // CONSTANTS
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 
 const WORK_MINUTES = 8 * 60;
+
 const HALF_DAY_MINUTES = 4 * 60;
 
 const SCAN_INTERVAL_MS = 20000;
 
-const SPRITE_FPS = 10;
-
-const FRAME_DELAY = 1000 / SPRITE_FPS;
-
-// ─────────────────────────────────────────────────────────────
-// GLOBAL STATE
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
+// GLOBALS
+// ─────────────────────────────────────────────────────
 
 let refs = {};
 
-let spriteFrame = 0;
-
-let rafHandle = null;
-
-let lastFrameTime = 0;
+let previousCoinState = -1;
 
 let completedMission = false;
 
-let scanLock = false;
-
 let mutationTimer = null;
 
-let previousCoinState = -1;
+// ─────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────
-// TIME HELPERS
-// ─────────────────────────────────────────────────────────────
+function setIfChanged(el, val) {
+
+    if (!el) return;
+
+    if (el.textContent === val) return;
+
+    el.textContent = val;
+}
 
 function parseTimeToMinutes(ts) {
 
@@ -90,10 +87,6 @@ function parseTimeToMinutes(ts) {
 
     if (ap === 'am' && H === 12) H = 0;
 
-    if (H < 0 || H > 23 || M < 0 || M > 59) {
-        return null;
-    }
-
     return H * 60 + M;
 }
 
@@ -121,7 +114,8 @@ function liveMinutesFrom(startStr) {
     const now = new Date();
 
     const nowMins =
-        now.getHours() * 60 + now.getMinutes();
+        now.getHours() * 60 +
+        now.getMinutes();
 
     const diff = nowMins - s;
 
@@ -139,22 +133,9 @@ function fmtTime(d) {
     }).toUpperCase();
 }
 
-// ─────────────────────────────────────────────────────────────
-// DOM UTILS
-// ─────────────────────────────────────────────────────────────
-
-function setIfChanged(el, val) {
-
-    if (!el) return;
-
-    if (el.textContent === val) return;
-
-    el.textContent = val;
-}
-
-// ─────────────────────────────────────────────────────────────
-// LOG EXTRACTION
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
+// EXTRACT LOGS
+// ─────────────────────────────────────────────────────
 
 function extractLogPairs() {
 
@@ -176,77 +157,6 @@ function extractLogPairs() {
             return parseTimeToMinutes(v) !== null;
         });
 
-    // fallback mode
-
-    if (timeInputs.length === 0) {
-
-        const timeRegex =
-            /^\d{1,2}:\d{2}\s*(am|pm)$/i;
-
-        const allEls =
-            Array
-                .from(document.querySelectorAll(
-                    'span, div, td, p'
-                ))
-                .filter(el => {
-
-                    if (
-                        el.closest('#kekaMario') ||
-                        el.closest('#kekaSpider')
-                    ) return false;
-
-                    if (el.children.length > 2) return false;
-
-                    const t =
-                        (el.textContent || '').trim();
-
-                    return timeRegex.test(t);
-                });
-
-        const leafEls =
-            allEls.filter(el =>
-                !allEls.some(other =>
-                    other !== el &&
-                    el.contains(other)
-                )
-            );
-
-        for (let i = 0; i < leafEls.length; i++) {
-
-            const s =
-                (leafEls[i].textContent || '').trim();
-
-            if (parseTimeToMinutes(s) === null) continue;
-
-            if (i + 1 < leafEls.length) {
-
-                const e =
-                    (leafEls[i + 1].textContent || '').trim();
-
-                pairs.push({
-                    s,
-                    e:
-                        parseTimeToMinutes(e) !== null
-                            ? e
-                            : 'MISSING'
-                });
-
-                i++;
-
-            } else {
-
-                pairs.push({
-                    s,
-                    e: 'MISSING'
-                });
-            }
-        }
-
-        return pairs;
-    }
-
-    // structured rows
-
     function getRowAncestor(el) {
 
         let node = el.parentElement;
@@ -258,7 +168,9 @@ function extractLogPairs() {
             const inputsInNode =
                 node.querySelectorAll('input');
 
-            if (inputsInNode.length >= 2) return node;
+            if (inputsInNode.length >= 2) {
+                return node;
+            }
 
             node = node.parentElement;
         }
@@ -309,33 +221,19 @@ function extractLogPairs() {
             }
         }
 
-        if (
-            e === 'MISSING' &&
-            !/missing/i.test(row.textContent || '')
-        ) {
-            if (inputs.length < 2) continue;
-        }
-
         pairs.push({ s, e });
     }
-
-    pairs.sort((a, b) =>
-        (parseTimeToMinutes(a.s) || 0) -
-        (parseTimeToMinutes(b.s) || 0)
-    );
 
     return pairs;
 }
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 // PROCESS LOGS
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 
 function processLogs() {
 
     const pairs = extractLogPairs();
-
-    if (pairs.length === 0) return;
 
     let totalM = 0;
 
@@ -391,6 +289,7 @@ function processLogs() {
 
             activeStart = null;
         }
+
     });
 
     if (activeStart) {
@@ -404,63 +303,22 @@ function processLogs() {
     }
 
     window.KekaHoursLatest = {
+
         totalMinutes: totalM,
+
         breakMinutes: breakM,
+
         firstStart
     };
 }
+// ╔══════════════════════════════════════════════════════════════╗
+// ║   KEKA CINEMATIC TRACKER — MARIO SYSTEM                     ║
+// ║   PART 2 / 3                                                ║
+// ╚══════════════════════════════════════════════════════════════╝
 
-// ─────────────────────────────────────────────────────────────
-// VIBES
-// ─────────────────────────────────────────────────────────────
-
-function getSpiderVibe(pct) {
-
-    if (pct >= 100)
-        return 'MISSION COMPLETE. Manhattan secured.';
-
-    if (pct >= 90)
-        return 'Final villain chase. Almost done.';
-
-    if (pct >= 75)
-        return 'Swinging through Midtown at full speed.';
-
-    if (pct >= 50)
-        return 'Spider-Sense fully activated.';
-
-    if (pct >= 25)
-        return 'Patrolling NYC skyline.';
-
-    return 'Entering Manhattan patrol route.';
-}
-
-function getMarioVibe(pct) {
-
-    if (pct >= 100)
-        return '"nikal gayo bhai… castle clear."';
-
-    if (pct >= 90)
-        return '"final boss baki che..."';
-
-    if (pct >= 75)
-        return '"ghar dekhai rahyu che..."';
-
-    if (pct >= 50)
-        return '"aadho grind thai gayo..."';
-
-    if (pct >= 25)
-        return '"coins collect thai rahya che..."';
-
-    return '"kaam sharu kar..."';
-}
-// ╔══════════════════════════════════════════════════════════════════╗
-// ║   KEKA GRIND TRACKER — MARIO SYSTEM                            ║
-// ║   PART 2 / 3                                                     ║
-// ╚══════════════════════════════════════════════════════════════════╝
-
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 // MARIO STYLES
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 
 function injectMarioStyles() {
 
@@ -494,8 +352,9 @@ style.textContent = `
 
 @keyframes km-soft-glow{
     0%,100%{
-        filter:drop-shadow(0 18px 30px rgba(0,0,0,.2));
+        filter:drop-shadow(0 18px 30px rgba(0,0,0,.20));
     }
+
     50%{
         filter:drop-shadow(0 22px 38px rgba(255,214,0,.24));
     }
@@ -553,16 +412,6 @@ style.textContent = `
     }
 }
 
-@keyframes km-cloud{
-    from{
-        transform:translateX(-20px);
-    }
-
-    to{
-        transform:translateX(20px);
-    }
-}
-
 @keyframes km-progress-stripe{
     from{
         background-position:0 0;
@@ -583,16 +432,6 @@ style.textContent = `
     }
 }
 
-@keyframes km-ticker{
-    0%{
-        transform:translateX(0);
-    }
-
-    100%{
-        transform:translateX(-50%);
-    }
-}
-
 @keyframes km-ld{
     0%,100%{
         opacity:1;
@@ -605,15 +444,25 @@ style.textContent = `
     }
 }
 
+@keyframes km-cloud{
+    from{
+        transform:translateX(-20px);
+    }
+
+    to{
+        transform:translateX(20px);
+    }
+}
+
 `;
 
 document.head.appendChild(style);
 
 }
 
-// ─────────────────────────────────────────────────────────────
-// PIXEL DRAW HELPERS
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
+// PIXEL HELPERS
+// ─────────────────────────────────────────────────────
 
 function px(ctx, S, x, y, c) {
 
@@ -628,17 +477,17 @@ ctx.fillRect(
 
 }
 
-// ─────────────────────────────────────────────────────────────
-// DRAW MARIO
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
+// MARIO SPRITE
+// ─────────────────────────────────────────────────────
 
-function drawMarioFrame(ctx, frame, green = false) {
+function drawMarioFrame(ctx, frame) {
 
 ctx.clearRect(0,0,40,52);
 
 const S = 4;
 
-const R = green ? '#16a34a' : '#e52213';
+const R = '#e52213';
 
 const B = '#0052a2';
 
@@ -647,10 +496,6 @@ const SK = '#fba86f';
 const SH = '#5e1205';
 
 const BL = '#4a2200';
-
-const W = '#fff';
-
-const E = '#e8a000';
 
 const d = (x,y,c)=>px(ctx,S,x,y,c);
 
@@ -682,73 +527,35 @@ d(7,3,SH);
 ].forEach(p=>d(...p));
 
 [
-[3,5,E],[4,5,E],[5,5,E],[6,5,E],[7,5,E]
-
-].forEach(p=>d(...p));
-
-[
 [0,6,B],[1,6,B],[2,6,B],[3,6,B],[4,6,B],[5,6,B],[6,6,B],[7,6,B],[8,6,B],[9,6,B],[10,6,B]
 
 ].forEach(p=>d(...p));
-
-[
-[0,7,B],[1,7,B],[2,7,B],[3,7,B],[4,7,B],[5,7,B],[6,7,B],[7,7,B],[8,7,B],[9,7,B],[10,7,B]
-
-].forEach(p=>d(...p));
-
-[
-[2,8,B],[3,8,B],[4,8,SK],[5,8,SK],[6,8,B],[7,8,B],[8,8,B]
-
-].forEach(p=>d(...p));
-
-[
-[2,9,SK],[3,9,SK],[4,9,SK],[5,9,SK],[6,9,SK],[7,9,SK],[8,9,SK]
-
-].forEach(p=>d(...p));
-
-d(-1,6,SK);
-
-d(-1,7,R);
-
-d(11,6,SK);
-
-d(11,7,SK);
-
-d(3,5,W);
-
-d(8,5,W);
 
 (
 frame % 2 === 0
 ?
 [
-[2,10,B],[3,10,B],[7,10,B],[8,10,B],[9,10,B],
-[2,11,BL],[3,11,BL],[8,11,BL],[9,11,BL]
+[2,10,B],[3,10,B],[7,10,B],[8,10,B],[9,10,B]
 ]
 :
 [
-[1,10,B],[2,10,B],[3,10,B],[8,10,B],[9,10,B],
-[1,11,BL],[2,11,BL],[8,11,BL],[9,11,BL]
+[1,10,B],[2,10,B],[3,10,B],[8,10,B],[9,10,B]
 ]
 ).forEach(p=>d(...p));
 
 }
 
-// ─────────────────────────────────────────────────────────────
-// DRAW GOOMBA
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
+// GOOMBA
+// ─────────────────────────────────────────────────────
 
-function drawGoombaFrame(ctx, frame) {
+function drawGoombaFrame(ctx) {
 
 ctx.clearRect(0,0,36,36);
 
 const S = 4;
 
 const GB = '#795548';
-
-const GD = '#4a2200';
-
-const GW = '#fff';
 
 const d = (x,y,c)=>px(ctx,S,x,y,c);
 
@@ -758,33 +565,11 @@ const d = (x,y,c)=>px(ctx,S,x,y,c);
 
 ].forEach(p=>d(...p));
 
-[
-[1,3,GW],[2,3,GW],[6,3,GW],[7,3,GW],
-[1,4,GW],[2,4,GW],[6,4,GW],[7,4,GW]
-
-].forEach(p=>d(...p));
-
-d(2,4,'#000');
-
-d(7,4,'#000');
-
-(
-frame % 2 === 0
-?
-[
-[0,7,GD],[1,7,GD],[6,7,GD],[7,7,GD],[8,7,GD]
-]
-:
-[
-[1,7,GD],[2,7,GD],[5,7,GD],[6,7,GD],[7,7,GD]
-]
-).forEach(p=>d(...p));
-
 }
 
-// ─────────────────────────────────────────────────────────────
-// MARIO COINS
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
+// COINS
+// ─────────────────────────────────────────────────────
 
 function buildMarioCoins(pct) {
 
@@ -811,53 +596,47 @@ for (let i = 0; i < TOTAL; i++) {
 
     c.style.cssText =
         on
-            ?
-            `
-            width:18px;
-            height:18px;
-            border-radius:50%;
-            flex-shrink:0;
-            position:relative;
+        ?
+        `
+        width:18px;
+        height:18px;
+        border-radius:50%;
+        flex-shrink:0;
 
-            background:
-                radial-gradient(
-                    circle at 35% 28%,
-                    #fffde7,
-                    #ffd600 38%,
-                    #c67c00 72%,
-                    #7a4500 100%
-                );
+        background:
+        radial-gradient(
+            circle at 35% 28%,
+            #fffde7,
+            #ffd600 38%,
+            #c67c00 72%,
+            #7a4500 100%
+        );
 
-            border:2.5px solid #fff;
+        border:2.5px solid #fff;
 
-            box-shadow:
-                0 3px 0 rgba(0,0,0,.25),
-                inset 0 1px 2px rgba(255,255,255,.5);
+        animation:
+        km-coin-pop 2.4s ease-in-out infinite ${i*.06}s;
+        `
+        :
+        `
+        width:18px;
+        height:18px;
+        border-radius:50%;
+        flex-shrink:0;
 
-            animation:
-                km-coin-pop 2.4s ease-in-out infinite ${i*.06}s;
-            `
-            :
-            `
-            width:18px;
-            height:18px;
-            border-radius:50%;
-            flex-shrink:0;
-            position:relative;
+        background:rgba(0,0,0,.22);
 
-            background:rgba(0,0,0,.22);
-
-            border:1.5px solid rgba(255,255,255,.22);
-            `;
+        border:1.5px solid rgba(255,255,255,.22);
+        `;
 
     wrap.appendChild(c);
 }
 
 }
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 // CREATE MARIO UI
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 
 function createMarioUI() {
 
@@ -891,12 +670,11 @@ box-shadow:
 animation:
 km-slidein .65s cubic-bezier(.34,1.4,.64,1) forwards,
 km-soft-glow 4s ease-in-out infinite .9s;
-
 `;
 
 widget.innerHTML = `
 
-<div id="kmWorld"
+<div
 style="
 position:relative;
 height:252px;
@@ -909,7 +687,8 @@ linear-gradient(
 #78b3ff 58%,
 #a9d5ff 100%
 );
-">
+"
+>
 
 <svg
 style="
@@ -1233,77 +1012,6 @@ gap:3px;
 "
 ></div>
 
-<div
-style="
-display:grid;
-grid-template-columns:1fr 1fr;
-gap:8px;
-margin-top:12px;
-"
->
-
-<div class="spiderCard">
-
-<div class="spiderCardLabel">
-Worked
-</div>
-
-<div
-id="kmWorked"
-class="spiderCardValue"
->
-0h 00m
-</div>
-
-</div>
-
-<div class="spiderCard">
-
-<div class="spiderCardLabel">
-Remaining
-</div>
-
-<div
-id="kmLeft"
-class="spiderCardValue"
->
-8h 00m
-</div>
-
-</div>
-
-<div class="spiderCard">
-
-<div class="spiderCardLabel">
-Half Day
-</div>
-
-<div
-id="kmHalf"
-class="spiderCardValue"
->
---
-</div>
-
-</div>
-
-<div class="spiderCard">
-
-<div class="spiderCardLabel">
-Mission End
-</div>
-
-<div
-id="kmFull"
-class="spiderCardValue"
->
---
-</div>
-
-</div>
-
-</div>
-
 </div>
 
 `;
@@ -1315,79 +1023,24 @@ refs = {
 widget,
 
 hours:
-    widget.querySelector('#kmHours'),
+widget.querySelector('#kmHours'),
 
 mins:
-    widget.querySelector('#kmMins'),
-
-worked:
-    widget.querySelector('#kmWorked'),
-
-left:
-    widget.querySelector('#kmLeft'),
+widget.querySelector('#kmMins'),
 
 pct:
-    widget.querySelector('#kmPct'),
+widget.querySelector('#kmPct'),
 
 progress:
-    widget.querySelector('#kmProgress'),
+widget.querySelector('#kmProgress'),
 
 vibe:
-    widget.querySelector('#kmVibe'),
-
-half:
-    widget.querySelector('#kmHalf'),
-
-full:
-    widget.querySelector('#kmFull'),
+widget.querySelector('#kmVibe'),
 
 coins:
-    widget.querySelector('#kmCoins')
+widget.querySelector('#kmCoins')
 
 };
-
-buildMarioCoins(0);
-
-startMarioSprites();
-
-}
-
-// ─────────────────────────────────────────────────────────────
-// SPRITE LOOP
-// ─────────────────────────────────────────────────────────────
-
-function spriteLoop(now) {
-
-rafHandle = requestAnimationFrame(spriteLoop);
-
-if (now - lastFrameTime < FRAME_DELAY) return;
-
-lastFrameTime = now;
-
-spriteFrame++;
-
-if (refs._mCtx) {
-    drawMarioFrame(
-        refs._mCtx,
-        spriteFrame,
-        false
-    );
-}
-
-if (refs._gCtx) {
-    drawGoombaFrame(
-        refs._gCtx,
-        spriteFrame
-    );
-}
-
-}
-
-// ─────────────────────────────────────────────────────────────
-// START SPRITES
-// ─────────────────────────────────────────────────────────────
-
-function startMarioSprites() {
 
 const mc =
     document.getElementById('kmMarioSprite');
@@ -1395,23 +1048,32 @@ const mc =
 const gc =
     document.getElementById('kmGoomba');
 
-if (!mc || !gc) return;
+const mCtx = mc.getContext('2d');
 
-refs._mCtx = mc.getContext('2d');
+const gCtx = gc.getContext('2d');
 
-refs._gCtx = gc.getContext('2d');
+let frame = 0;
 
-drawMarioFrame(refs._mCtx, 0, false);
+function loop() {
 
-drawGoombaFrame(refs._gCtx, 0);
+    frame++;
 
-rafHandle = requestAnimationFrame(spriteLoop);
+    drawMarioFrame(mCtx, frame);
+
+    drawGoombaFrame(gCtx);
+
+    requestAnimationFrame(loop);
+}
+
+loop();
+
+buildMarioCoins(0);
 
 }
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 // UPDATE MARIO UI
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 
 function updateMarioUI(
 data,
@@ -1434,93 +1096,43 @@ setIfChanged(
 );
 
 setIfChanged(
-    refs.worked,
-    `${h}h ${mStr}m`
-);
-
-setIfChanged(
-    refs.left,
-    `${Math.floor(left/60)}h ${String(left%60).padStart(2,'0')}m`
-);
-
-setIfChanged(
     refs.pct,
     `${pct}%`
 );
 
-refs.progress.style.width = `${pct}%`;
+refs.progress.style.width =
+    `${pct}%`;
 
 setIfChanged(
     refs.vibe,
-    getMarioVibe(pct)
+    pct >= 100
+        ?
+        '"castle clear bhai..."'
+        :
+        '"coins collect thai rahya che..."'
 );
 
 buildMarioCoins(pct);
 
-if (data.firstStart) {
-
-    const s =
-        parseTimeToMinutes(data.firstStart);
-
-    if (s !== null) {
-
-        const base = new Date();
-
-        base.setHours(
-            Math.floor(s / 60),
-            s % 60,
-            0,
-            0
-        );
-
-        const half =
-            new Date(
-                base.getTime() +
-                (
-                    HALF_DAY_MINUTES +
-                    breaks
-                ) * 60000
-            );
-
-        const full =
-            new Date(
-                base.getTime() +
-                (
-                    WORK_MINUTES +
-                    breaks
-                ) * 60000
-            );
-
-        setIfChanged(
-            refs.half,
-            fmtTime(half)
-        );
-
-        setIfChanged(
-            refs.full,
-            fmtTime(full)
-        );
-    }
 }
 
-}
-// ─────────────────────────────────────────────────────────────
-// MARIO INIT
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
+// INIT MARIO
+// ─────────────────────────────────────────────────────
 
 if (THEME === 'mario') {
 
-    createMarioUI();
+createMarioUI();
 
 }
-// ╔══════════════════════════════════════════════════════════════════╗
-// ║   KEKA GRIND TRACKER — SPIDER-MAN CINEMATIC ENGINE             ║
-// ║   PART 3 / 3                                                     ║
-// ╚══════════════════════════════════════════════════════════════════╝
+// ╔══════════════════════════════════════════════════════════════╗
+// ║   KEKA CINEMATIC TRACKER — SPIDER-MAN HUD                  ║
+// ║   PART 3 / 3                                                ║
+// ╚══════════════════════════════════════════════════════════════╝
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 // SPIDER STYLES
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 
 function injectSpiderStyles() {
 
@@ -1545,6 +1157,7 @@ style.textContent = `
         transform:translateX(120%) scale(.96);
         opacity:0;
     }
+
     to{
         transform:translateX(0) scale(1);
         opacity:1;
@@ -1563,19 +1176,17 @@ style.textContent = `
     }
 }
 
-@keyframes sp-rain{
-    0%{
-        transform:translateY(-20px);
-        opacity:0;
+@keyframes sp-glow{
+    0%,100%{
+        box-shadow:
+        0 0 25px rgba(255,80,80,.18),
+        0 20px 60px rgba(0,0,0,.42);
     }
 
-    10%{
-        opacity:.4;
-    }
-
-    100%{
-        transform:translateY(280px);
-        opacity:0;
+    50%{
+        box-shadow:
+        0 0 40px rgba(255,80,80,.28),
+        0 25px 80px rgba(0,0,0,.52);
     }
 }
 
@@ -1585,22 +1196,36 @@ style.textContent = `
     }
 
     50%{
-        transform:translateY(-6px);
+        transform:translateY(-8px);
     }
 }
 
-@keyframes sp-glow{
+@keyframes sp-shimmer{
+    0%{
+        transform:translateX(-140%) rotate(18deg);
+    }
+
+    100%{
+        transform:translateX(180%) rotate(18deg);
+    }
+}
+
+@keyframes sp-complete{
     0%,100%{
         box-shadow:
-            0 0 30px rgba(255,80,80,.25),
-            0 0 120px rgba(0,0,0,.45);
+        0 0 30px rgba(34,197,94,.25),
+        0 20px 70px rgba(0,0,0,.45);
     }
 
     50%{
         box-shadow:
-            0 0 60px rgba(255,80,80,.45),
-            0 0 150px rgba(0,0,0,.6);
+        0 0 60px rgba(34,197,94,.45),
+        0 20px 90px rgba(0,0,0,.55);
     }
+}
+
+.sp-complete{
+    animation:sp-complete 1.8s ease-in-out infinite !important;
 }
 
 `;
@@ -1609,9 +1234,9 @@ document.head.appendChild(style);
 
 }
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 // CREATE SPIDER UI
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 
 function createSpiderUI() {
 
@@ -1625,57 +1250,16 @@ widget.id = 'kekaSpider';
 
 widget.style.cssText = `
 position:fixed;
-inset:0;
+top:20px;
+right:20px;
 z-index:2147483646;
+
+width:420px;
+height:760px;
+
+border-radius:34px;
+
 overflow:hidden;
-pointer-events:none;
-`;
-
-let rainHTML = '';
-
-for (let i = 0; i < 24; i++) {
-
-    const x = Math.random() * window.innerWidth;
-
-    const dur =
-        (1.8 + Math.random() * 2.4).toFixed(1);
-
-    const delay =
-        (Math.random() * 3).toFixed(1);
-
-    rainHTML += `
-    <div
-    style="
-    position:absolute;
-    left:${x}px;
-    top:0;
-    width:1px;
-    height:${14+Math.random()*14|0}px;
-
-    background:
-    linear-gradient(
-        180deg,
-        transparent,
-        rgba(96,165,250,.28),
-        transparent
-    );
-
-    animation:
-    sp-rain ${dur}s linear ${delay}s infinite;
-
-    pointer-events:none;
-    "
-    ></div>
-    `;
-}
-
-widget.innerHTML = `
-
-<div
-id="spidermanScene"
-style="
-position:absolute;
-inset:0;
 
 background:
 linear-gradient(
@@ -1687,155 +1271,259 @@ linear-gradient(
 #1d2b64 100%
 );
 
+box-shadow:
+0 0 25px rgba(255,80,80,.18),
+0 20px 60px rgba(0,0,0,.42);
+
+animation:
+sp-slidein .7s cubic-bezier(.34,1.3,.64,1) forwards,
+sp-glow 4s ease-in-out infinite;
+
+backdrop-filter:blur(10px);
+
 overflow:hidden;
+`;
+
+widget.innerHTML = `
+
+<div
+style="
+position:absolute;
+inset:0;
+
+background:
+linear-gradient(
+180deg,
+rgba(255,255,255,.08),
+rgba(255,255,255,.02)
+);
+
+pointer-events:none;
 "
->
+></div>
+
+<!-- CITY BACKGROUND -->
 
 <canvas
 id="spidermanCanvas"
 style="
 position:absolute;
 inset:0;
+opacity:.95;
 "
 ></canvas>
+
+<!-- DARK OVERLAY -->
 
 <div
 style="
 position:absolute;
 inset:0;
-pointer-events:none;
-overflow:hidden;
-"
->
-${rainHTML}
-</div>
-
-<div
-id="spidermanHud"
-style="
-position:absolute;
-right:70px;
-top:60px;
-
-width:370px;
 
 background:
 linear-gradient(
-145deg,
-rgba(255,255,255,.14),
-rgba(255,255,255,.05)
+180deg,
+rgba(0,0,0,.05),
+rgba(0,0,0,.28)
 );
-
-backdrop-filter:blur(18px);
-
-border:1px solid rgba(255,255,255,.2);
-
-border-radius:32px;
-
-padding:28px;
-
-box-shadow:
-0 0 30px rgba(255,80,80,.25),
-0 0 120px rgba(0,0,0,.45);
-
-animation:
-sp-slidein .7s cubic-bezier(.34,1.3,.64,1) forwards,
-sp-glow 4s ease-in-out infinite;
-
-pointer-events:auto;
-
-overflow:hidden;
 "
->
+></div>
+
+<!-- TOP BAR -->
 
 <div
 style="
 position:absolute;
-inset:-40%;
+top:18px;
+left:18px;
+right:18px;
 
-background:
-conic-gradient(
-from 0deg,
-transparent,
-rgba(255,255,255,.12),
-transparent
-);
+display:flex;
+justify-content:space-between;
+align-items:center;
 
-animation:sp-spin 8s linear infinite;
-"
-></div>
-
-<div
-style="
-position:relative;
-z-index:2;
+z-index:5;
 "
 >
+
+<div>
 
 <div
 style="
 font-family:'Orbitron',sans-serif;
-font-size:30px;
+font-size:26px;
 font-weight:900;
+letter-spacing:3px;
 color:white;
-letter-spacing:4px;
-text-transform:uppercase;
 
 text-shadow:
-0 0 15px rgba(255,255,255,.8),
-0 0 30px rgba(255,0,0,.8);
-
-margin-bottom:10px;
+0 0 18px rgba(255,255,255,.45),
+0 0 30px rgba(255,0,0,.4);
 "
 >
-Spider Mission
+SPIDER HUD
 </div>
 
 <div
 style="
-color:rgba(255,255,255,.8);
+font-size:11px;
 letter-spacing:2px;
-margin-bottom:28px;
-font-size:13px;
+color:rgba(255,255,255,.72);
+margin-top:2px;
 "
 >
-NYC SWING TRACKER • EARTH-616
+EARTH-616 • NYC
+</div>
+
 </div>
 
 <div
 style="
-width:220px;
-height:220px;
-margin:auto;
-position:relative;
+display:flex;
+gap:8px;
 "
 >
 
-<svg viewBox="0 0 220 220">
+<button
+id="spMin"
+style="
+width:34px;
+height:34px;
+
+border:none;
+
+border-radius:50%;
+
+background:rgba(255,255,255,.12);
+
+color:white;
+
+font-size:18px;
+
+cursor:pointer;
+
+backdrop-filter:blur(8px);
+"
+>
+−
+</button>
+
+<button
+id="spClose"
+style="
+width:34px;
+height:34px;
+
+border:none;
+
+border-radius:50%;
+
+background:rgba(255,255,255,.12);
+
+color:white;
+
+font-size:16px;
+
+cursor:pointer;
+
+backdrop-filter:blur(8px);
+"
+>
+×
+</button>
+
+</div>
+
+</div>
+
+<!-- MAIN CONTENT -->
+
+<div
+id="spContent"
+style="
+position:absolute;
+top:90px;
+left:20px;
+right:20px;
+bottom:20px;
+
+display:flex;
+flex-direction:column;
+"
+>
+
+<!-- REACTOR -->
+
+<div
+style="
+position:relative;
+
+width:240px;
+height:240px;
+
+margin:0 auto;
+
+animation:sp-float 4s ease-in-out infinite;
+"
+>
+
+<div
+style="
+position:absolute;
+inset:0;
+
+border-radius:50%;
+
+background:
+radial-gradient(
+circle,
+rgba(255,255,255,.22),
+rgba(255,255,255,.04)
+);
+
+backdrop-filter:blur(10px);
+"
+></div>
+
+<svg viewBox="0 0 240 240"
+style="
+position:absolute;
+inset:0;
+"
+>
 
 <circle
-cx="110"
-cy="110"
-r="85"
+cx="120"
+cy="120"
+r="88"
+
 stroke="rgba(255,255,255,.12)"
-stroke-width="4"
+
+stroke-width="6"
+
 fill="none"
 />
 
 <circle
 id="spProgressCircle"
-cx="110"
-cy="110"
-r="85"
+
+cx="120"
+cy="120"
+r="88"
+
 stroke="url(#spGrad)"
-stroke-width="10"
+
+stroke-width="12"
+
 fill="none"
+
 stroke-linecap="round"
 
-transform="rotate(-90 110 110)"
+transform="rotate(-90 120 120)"
 
-stroke-dasharray="534"
-stroke-dashoffset="534"
+stroke-dasharray="553"
+
+stroke-dashoffset="553"
 />
 
 <defs>
@@ -1858,11 +1546,11 @@ transform-origin:center;
 >
 
 <circle
-cx="110"
-cy="110"
-r="96"
+cx="120"
+cy="120"
+r="104"
 
-stroke="rgba(255,255,255,.14)"
+stroke="rgba(255,255,255,.18)"
 
 stroke-dasharray="10 12"
 
@@ -1881,11 +1569,11 @@ transform-origin:center;
 >
 
 <circle
-cx="110"
-cy="110"
-r="70"
+cx="120"
+cy="120"
+r="72"
 
-stroke="rgba(255,0,0,.4)"
+stroke="rgba(255,0,0,.38)"
 
 stroke-dasharray="8 10"
 
@@ -1913,14 +1601,15 @@ flex-direction:column;
 <div
 id="spHours"
 style="
-font-size:60px;
+font-size:64px;
 font-weight:900;
 color:white;
+
 line-height:1;
 
 text-shadow:
-0 0 25px rgba(255,255,255,.8),
-0 0 45px rgba(255,0,0,.8);
+0 0 18px rgba(255,255,255,.65),
+0 0 30px rgba(255,0,0,.4);
 "
 >
 0h
@@ -1929,9 +1618,9 @@ text-shadow:
 <div
 id="spMins"
 style="
-font-size:22px;
+font-size:24px;
 color:#9fd3ff;
-margin-top:5px;
+
 letter-spacing:3px;
 "
 >
@@ -1942,71 +1631,161 @@ letter-spacing:3px;
 
 </div>
 
+<!-- MISSION CARD -->
+
 <div
 style="
-margin-top:28px;
+margin-top:24px;
 
-display:grid;
-grid-template-columns:1fr 1fr;
+background:
+linear-gradient(
+145deg,
+rgba(255,255,255,.14),
+rgba(255,255,255,.05)
+);
 
-gap:16px;
+border:1px solid rgba(255,255,255,.12);
+
+border-radius:24px;
+
+padding:18px;
+
+backdrop-filter:blur(14px);
+
+position:relative;
+
+overflow:hidden;
 "
 >
 
-<div class="spiderCard">
+<div
+style="
+position:absolute;
+top:-30px;
+left:-70px;
 
-<div class="spiderCardLabel">
-Remaining
+width:80px;
+height:180px;
+
+background:rgba(255,255,255,.18);
+
+animation:sp-shimmer 6s linear infinite;
+"
+></div>
+
+<div
+style="
+position:relative;
+z-index:2;
+"
+>
+
+<div
+style="
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:14px;
+"
+>
+
+<div>
+
+<div
+style="
+font-size:11px;
+letter-spacing:2px;
+color:rgba(255,255,255,.65);
+"
+>
+REMAINING
 </div>
 
 <div
 id="spRemaining"
-class="spiderCardValue"
+style="
+font-size:28px;
+font-weight:700;
+color:white;
+margin-top:5px;
+"
 >
 0h
 </div>
 
 </div>
 
-<div class="spiderCard">
+<div>
 
-<div class="spiderCardLabel">
-Break
+<div
+style="
+font-size:11px;
+letter-spacing:2px;
+color:rgba(255,255,255,.65);
+"
+>
+BREAK
 </div>
 
 <div
 id="spBreak"
-class="spiderCardValue"
+style="
+font-size:28px;
+font-weight:700;
+color:white;
+margin-top:5px;
+"
 >
 0m
 </div>
 
 </div>
 
-<div class="spiderCard">
+<div>
 
-<div class="spiderCardLabel">
-Half Day
+<div
+style="
+font-size:11px;
+letter-spacing:2px;
+color:rgba(255,255,255,.65);
+"
+>
+HALF DAY
 </div>
 
 <div
 id="spHalf"
-class="spiderCardValue"
+style="
+font-size:24px;
+font-weight:700;
+color:white;
+margin-top:5px;
+"
 >
 --
 </div>
 
 </div>
 
-<div class="spiderCard">
+<div>
 
-<div class="spiderCardLabel">
-Mission End
+<div
+style="
+font-size:11px;
+letter-spacing:2px;
+color:rgba(255,255,255,.65);
+"
+>
+MISSION END
 </div>
 
 <div
 id="spFull"
-class="spiderCardValue"
+style="
+font-size:24px;
+font-weight:700;
+color:white;
+margin-top:5px;
+"
 >
 --
 </div>
@@ -2018,26 +1797,23 @@ class="spiderCardValue"
 <div
 id="spMission"
 style="
-margin-top:22px;
+margin-top:20px;
+
+padding:16px;
+
+border-radius:18px;
 
 background:
 linear-gradient(
 90deg,
-rgba(255,0,0,.2),
-rgba(0,120,255,.2)
+rgba(255,0,0,.16),
+rgba(0,120,255,.16)
 );
 
-border:1px solid rgba(255,255,255,.15);
-
-padding:16px;
-
-border-radius:20px;
-
+font-size:15px;
 color:white;
 
-font-size:15px;
-
-letter-spacing:1px;
+line-height:1.5;
 "
 >
 Swinging through Manhattan...
@@ -2048,113 +1824,101 @@ protecting the city while surviving Keka.
 
 </div>
 
-<div
-id="spComplete"
-style="
-position:absolute;
-inset:0;
-
-display:none;
-
-align-items:center;
-justify-content:center;
-flex-direction:column;
-
-background:
-radial-gradient(
-circle,
-rgba(255,255,255,.18),
-rgba(0,0,0,.82)
-);
-
-z-index:20;
-"
->
-
-<img
-src='https://upload.wikimedia.org/wikipedia/commons/5/52/Spider-Man_Icon.png'
-
-style="
-width:240px;
-
-filter:
-drop-shadow(0 0 40px red)
-drop-shadow(0 0 70px rgba(255,255,255,.7));
-"
-/>
-
-<div
-style="
-margin-top:30px;
-
-color:white;
-
-font-size:52px;
-
-font-family:'Orbitron',sans-serif;
-
-font-weight:900;
-
-letter-spacing:6px;
-
-text-shadow:
-0 0 20px rgba(255,255,255,.8),
-0 0 50px red;
-"
->
-MISSION COMPLETE
-</div>
-
-</div>
-
 </div>
 
 `;
 
 document.body.appendChild(widget);
 
+// ─────────────────────────────────────────
+// REFS
+// ─────────────────────────────────────────
+
 refs = {
 
 widget,
 
 hours:
-    widget.querySelector('#spHours'),
+widget.querySelector('#spHours'),
 
 mins:
-    widget.querySelector('#spMins'),
+widget.querySelector('#spMins'),
 
 remaining:
-    widget.querySelector('#spRemaining'),
+widget.querySelector('#spRemaining'),
 
 breakEl:
-    widget.querySelector('#spBreak'),
+widget.querySelector('#spBreak'),
 
 half:
-    widget.querySelector('#spHalf'),
+widget.querySelector('#spHalf'),
 
 full:
-    widget.querySelector('#spFull'),
+widget.querySelector('#spFull'),
 
 mission:
-    widget.querySelector('#spMission'),
+widget.querySelector('#spMission'),
 
 progress:
-    widget.querySelector('#spProgressCircle'),
+widget.querySelector('#spProgressCircle'),
 
-complete:
-    widget.querySelector('#spComplete')
+content:
+widget.querySelector('#spContent')
 
 };
 
-startSpiderScene();
+// ─────────────────────────────────────────
+// BUTTONS
+// ─────────────────────────────────────────
+
+const minBtn =
+    widget.querySelector('#spMin');
+
+const closeBtn =
+    widget.querySelector('#spClose');
+
+let minimized = false;
+
+minBtn.addEventListener('click',()=>{
+
+    minimized = !minimized;
+
+    refs.content.style.display =
+        minimized
+            ? 'none'
+            : 'flex';
+
+    widget.style.height =
+        minimized
+            ? '90px'
+            : '760px';
+
+    minBtn.textContent =
+        minimized
+            ? '+'
+            : '−';
+
+});
+
+closeBtn.addEventListener('click',()=>{
+
+    widget.remove();
+
+});
+
+// ─────────────────────────────────────────
+// START BACKGROUND
+// ─────────────────────────────────────────
+
+startSpiderBackground();
 
 }
 
-// ─────────────────────────────────────────────────────────────
-// CANVAS ENGINE
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
+// BACKGROUND ENGINE
+// ─────────────────────────────────────────────────────
 
-function startSpiderScene() {
+function startSpiderBackground() {
 
 const canvas =
     document.getElementById('spidermanCanvas');
@@ -2163,148 +1927,46 @@ if (!canvas) return;
 
 const ctx = canvas.getContext('2d');
 
-let w = canvas.width = window.innerWidth;
+let w = canvas.width = 420;
 
-let h = canvas.height = window.innerHeight;
-
-window.addEventListener('resize', () => {
-
-    w = canvas.width = window.innerWidth;
-
-    h = canvas.height = window.innerHeight;
-
-});
+let h = canvas.height = 760;
 
 const buildings = [];
 
-for (let i = 0; i < 50; i++) {
+for (let i = 0; i < 24; i++) {
 
     buildings.push({
 
-        x: i * 70,
+        x: i * 24,
 
-        y: h - (150 + Math.random() * 350),
+        y: h - (100 + Math.random() * 260),
 
-        w: 80 + Math.random() * 120,
+        w: 22 + Math.random() * 30,
 
-        h: 200 + Math.random() * 450
-
-    });
-}
-
-const particles = [];
-
-for (let i = 0; i < 100; i++) {
-
-    particles.push({
-
-        x: Math.random() * w,
-
-        y: Math.random() * h,
-
-        s: Math.random() * 2,
-
-        v: Math.random() * .6 + .2
+        h: 120 + Math.random() * 240
 
     });
 }
 
 let t = 0;
 
-function drawSpiderMan(x, y, swing) {
-
-    ctx.save();
-
-    ctx.translate(x, y);
-
-    ctx.rotate(Math.sin(swing) * .5);
-
-    ctx.strokeStyle = 'rgba(255,255,255,.7)';
-
-    ctx.lineWidth = 2;
-
-    ctx.beginPath();
-
-    ctx.moveTo(0, -300);
-
-    ctx.lineTo(0, 0);
-
-    ctx.stroke();
-
-    ctx.fillStyle = '#ff2d2d';
-
-    ctx.beginPath();
-
-    ctx.arc(0, 0, 16, 0, Math.PI * 2);
-
-    ctx.fill();
-
-    ctx.fillStyle = '#1f6fff';
-
-    ctx.fillRect(-10, 16, 20, 34);
-
-    ctx.strokeStyle = '#1f6fff';
-
-    ctx.lineWidth = 5;
-
-    ctx.beginPath();
-
-    ctx.moveTo(-8, 48);
-
-    ctx.lineTo(-18, 70);
-
-    ctx.moveTo(8, 48);
-
-    ctx.lineTo(18, 70);
-
-    ctx.stroke();
-
-    ctx.beginPath();
-
-    ctx.moveTo(-10, 24);
-
-    ctx.lineTo(-24, 42);
-
-    ctx.moveTo(10, 24);
-
-    ctx.lineTo(24, 42);
-
-    ctx.stroke();
-
-    ctx.restore();
-}
-
 function render() {
 
     ctx.clearRect(0,0,w,h);
 
-    const grad =
-        ctx.createLinearGradient(0,0,0,h);
-
-    grad.addColorStop(0,'#ff9966');
-
-    grad.addColorStop(.2,'#ff5e62');
-
-    grad.addColorStop(.5,'#355c7d');
-
-    grad.addColorStop(1,'#1d2b64');
-
-    ctx.fillStyle = grad;
-
-    ctx.fillRect(0,0,w,h);
-
     // clouds
 
-    ctx.fillStyle = 'rgba(255,255,255,.05)';
+    ctx.fillStyle =
+        'rgba(255,255,255,.05)';
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 6; i++) {
 
         ctx.beginPath();
 
         ctx.arc(
-            (i * 220 + t * .4) % (w + 400) - 200,
-            120 + Math.sin(i + t * .002) * 20,
-            80,
+            (i * 120 + t * .2) % (w + 200) - 100,
+            100 + Math.sin(i + t * .002) * 12,
+            40,
             0,
             Math.PI * 2
         );
@@ -2326,7 +1988,7 @@ function render() {
 
         g.addColorStop(
             0,
-            'rgba(30,30,60,.85)'
+            'rgba(20,20,40,.85)'
         );
 
         g.addColorStop(
@@ -2344,27 +2006,27 @@ function render() {
         );
 
         for (
-            let wy = b.y + 10;
+            let wy = b.y + 8;
             wy < h;
-            wy += 16
+            wy += 14
         ) {
 
             for (
-                let wx = b.x + 8;
-                wx < b.x + b.w - 8;
-                wx += 14
+                let wx = b.x + 6;
+                wx < b.x + b.w - 6;
+                wx += 12
             ) {
 
-                if (Math.random() > .7) {
+                if (Math.random() > .72) {
 
                     ctx.fillStyle =
                         Math.random() > .5
                             ?
-                            'rgba(255,190,80,.8)'
+                            'rgba(255,190,80,.7)'
                             :
-                            'rgba(120,180,255,.7)';
+                            'rgba(120,180,255,.6)';
 
-                    ctx.fillRect(wx,wy,5,7);
+                    ctx.fillRect(wx,wy,4,6);
                 }
             }
         }
@@ -2373,115 +2035,30 @@ function render() {
 
     // traffic
 
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 10; i++) {
 
         ctx.strokeStyle =
             i % 2
                 ?
-                'rgba(255,80,80,.5)'
+                'rgba(255,80,80,.35)'
                 :
-                'rgba(255,255,180,.4)';
+                'rgba(255,255,180,.28)';
 
         ctx.lineWidth = 2;
 
         ctx.beginPath();
 
         const yy =
-            h - 60 + Math.sin(i) * 12;
+            h - 40 + Math.sin(i) * 6;
 
         ctx.moveTo(
-            (i * 100 + t * 2) % (w + 200) - 200,
+            (i * 60 + t * 1.4) % (w + 100) - 100,
             yy
         );
 
         ctx.lineTo(
-            (i * 100 + t * 2) % (w + 200) - 120,
+            (i * 60 + t * 1.4) % (w + 100) - 40,
             yy
-        );
-
-        ctx.stroke();
-    }
-
-    // particles
-
-    particles.forEach(p=>{
-
-        ctx.fillStyle =
-            'rgba(255,255,255,.4)';
-
-        ctx.beginPath();
-
-        ctx.arc(
-            p.x,
-            p.y,
-            p.s,
-            0,
-            Math.PI * 2
-        );
-
-        ctx.fill();
-
-        p.y -= p.v;
-
-        if (p.y < -10) {
-
-            p.y = h + 10;
-
-            p.x = Math.random() * w;
-        }
-
-    });
-
-    // helicopter
-
-    ctx.fillStyle = 'rgba(0,0,0,.8)';
-
-    const hx =
-        (t * .8) % (w + 200) - 200;
-
-    ctx.fillRect(hx,100,40,10);
-
-    ctx.fillRect(hx + 15,90,10,8);
-
-    ctx.beginPath();
-
-    ctx.moveTo(hx - 20,105);
-
-    ctx.lineTo(hx + 60,105);
-
-    ctx.strokeStyle = 'rgba(255,255,255,.7)';
-
-    ctx.stroke();
-
-    // spiderman
-
-    const sx =
-        w * .35 + Math.sin(t * .002) * 240;
-
-    const sy =
-        h * .3 + Math.cos(t * .003) * 80;
-
-    drawSpiderMan(sx,sy,t * .01);
-
-    // motion streaks
-
-    ctx.strokeStyle =
-        'rgba(255,255,255,.15)';
-
-    ctx.lineWidth = 4;
-
-    for (let i = 0; i < 6; i++) {
-
-        ctx.beginPath();
-
-        ctx.moveTo(
-            sx - 20 - i * 16,
-            sy + i * 4
-        );
-
-        ctx.lineTo(
-            sx - 120 - i * 16,
-            sy + i * 4
         );
 
         ctx.stroke();
@@ -2497,9 +2074,9 @@ render();
 
 }
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 // UPDATE SPIDER UI
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 
 function updateSpiderUI(
 data,
@@ -2531,16 +2108,37 @@ setIfChanged(
     `${breaks}m`
 );
 
-const circumference = 534;
+const circumference = 553;
 
 refs.progress.style.strokeDashoffset =
     circumference -
     (pct / 100) * circumference;
 
-setIfChanged(
-    refs.mission,
-    getSpiderVibe(pct)
-);
+if (pct < 25) {
+
+    refs.mission.textContent =
+        'Entering Manhattan patrol route.';
+
+} else if (pct < 50) {
+
+    refs.mission.textContent =
+        'Spider-Sense activated across NYC.';
+
+} else if (pct < 75) {
+
+    refs.mission.textContent =
+        'Swinging through Midtown at full speed.';
+
+} else if (pct < 100) {
+
+    refs.mission.textContent =
+        'Final villain chase sequence active.';
+
+} else {
+
+    refs.mission.textContent =
+        'MISSION COMPLETE. Manhattan secured.';
+}
 
 if (data.firstStart) {
 
@@ -2592,15 +2190,15 @@ if (pct >= 100 && !completedMission) {
 
     completedMission = true;
 
-    refs.complete.style.display = 'flex';
+    refs.widget.classList.add('sp-complete');
 
 }
 
 }
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 // MASTER UPDATE
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 
 function updateUI() {
 
@@ -2667,9 +2265,9 @@ if (THEME === 'mario') {
 
 }
 
-// ─────────────────────────────────────────────────────────────
-// OBSERVERS
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
+// OBSERVER
+// ─────────────────────────────────────────────────────
 
 function startObservers() {
 
@@ -2692,13 +2290,13 @@ observer.observe(document.body,{
 
 }
 
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 // INIT
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────
 
 if (THEME === 'spiderman') {
 
-    createSpiderUI();
+createSpiderUI();
 
 }
 
@@ -2709,7 +2307,7 @@ setInterval(updateUI,SCAN_INTERVAL_MS);
 startObservers();
 
 console.log(
-'%c🕷️ KEKA CINEMATIC TRACKER LOADED',
+'%c🕷️ KEKA HERO TRACKER LOADED',
 'color:#ff3d3d;font-size:16px;font-weight:bold;'
 );
 
