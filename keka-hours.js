@@ -151,41 +151,56 @@ function extractLogPairs() {
 
     const pairs = [];
 
-    const rows =
-        Array.from(
-            document.querySelectorAll(
-                'tr, .attendance-info, .day-entry'
+const allText =
+document.body.innerText
+.replace(/Weekly-off/gi,'')
+.replace(/Holiday/gi,'')
+.replace(/Leave/gi,'');
+
+    const matches =
+        [
+            ...allText.matchAll(
+                /(\d{1,2}:\d{2}\s?(?:AM|PM))/gi
             )
-        );
+        ]
+        .map(m => m[1]);
 
-    rows.forEach(row => {
+    if (!matches.length) {
+        return pairs;
+    }
 
-        const text =
-            row.innerText
-                .replace(/\n/g,' ')
-                .replace(/\s+/g,' ')
-                .trim();
+    // Remove duplicates while preserving order
 
-        const matches =
-            text.match(
-                /\d{1,2}:\d{2}\s?(AM|PM)/gi
-            );
+    const unique = [];
 
-        if (!matches || !matches.length) return;
+    matches.forEach(t => {
 
-        const start = matches[0];
-
-        const end =
-            matches.length >= 2
-                ? matches[1]
-                : 'MISSING';
-
-        pairs.push({
-            s:start,
-            e:end
-        });
+        if (
+            !unique.length ||
+            unique[unique.length - 1] !== t
+        ) {
+            unique.push(t);
+        }
 
     });
+
+    // Pair sequentially
+
+    for (let i = 0; i < unique.length; i += 2) {
+
+        pairs.push({
+
+            s: unique[i],
+
+            e:
+                unique[i + 1]
+                ?
+                unique[i + 1]
+                : 'MISSING'
+
+        });
+
+    }
 
     return pairs;
 }
@@ -1173,10 +1188,11 @@ style.textContent = `
 @keyframes spSwingMove{
 
     0%{
-        left:-140px;
+        left:430px;
         top:70px;
 
         transform:
+        scaleX(-1)
         rotate(-28deg)
         scale(.92);
     }
@@ -1186,9 +1202,10 @@ style.textContent = `
     }
 
     25%{
-        left:20px;
+        left:250px;
 
         transform:
+        scaleX(-1)
         rotate(18deg)
         scale(1);
     }
@@ -1198,9 +1215,10 @@ style.textContent = `
     }
 
     50%{
-        left:110px;
+        left:140px;
 
         transform:
+        scaleX(-1)
         rotate(-12deg)
         scale(1.02);
     }
@@ -1210,18 +1228,20 @@ style.textContent = `
     }
 
     75%{
-        left:210px;
+        left:20px;
 
         transform:
+        scaleX(-1)
         rotate(18deg)
         scale(1);
     }
 
     100%{
-        left:430px;
+        left:-140px;
         top:70px;
 
         transform:
+        scaleX(-1)
         rotate(-24deg)
         scale(.92);
     }
@@ -1922,6 +1942,8 @@ minBtn.addEventListener('click',()=>{
 closeBtn.addEventListener('click',()=>{
 
     widget.remove();
+
+    window.__KEKA_HERO_TRACKER__ = false;
 
 });
 
