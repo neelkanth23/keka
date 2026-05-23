@@ -151,33 +151,48 @@ function extractLogPairs() {
 
     const pairs = [];
 
-    // ONLY biometric log area
+    // find biometric section safely
 
-    const biometricSection =
-        Array.from(document.querySelectorAll('div'))
-        .find(el =>
-            /Biometric Logs/i.test(el.innerText)
+    const sections =
+        Array.from(
+            document.querySelectorAll('div')
         );
+
+    let biometricSection = null;
+
+    for (const div of sections) {
+
+        const txt =
+            div.innerText
+                ?.trim()
+                ?.toLowerCase();
+
+        if (txt === 'biometric logs') {
+
+            biometricSection =
+                div.parentElement;
+
+            break;
+        }
+    }
 
     if (!biometricSection) {
         return pairs;
     }
 
-    // capture ONLY visible biometric timestamps
+    // ONLY visible biometric timestamps
 
     const matches =
         [
             ...biometricSection.innerText.matchAll(
-                /(\d{1,2}:\d{2}\s?(?:am|pm))/gi
+                /\b\d{1,2}:\d{2}\s?(?:am|pm)\b/gi
             )
         ]
-        .map(m => m[1]);
+        .map(m => m[0]);
 
     if (!matches.length) {
         return pairs;
     }
-
-    // sequential pairing
 
     for (let i = 0; i < matches.length; i += 2) {
 
