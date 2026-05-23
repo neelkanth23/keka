@@ -1,6 +1,6 @@
 // ╔══════════════════════════════════════════════════════════════╗
-// ║   KEKA CINEMATIC TRACKER — CORE ENGINE                      ║
-// ║   PART 1 / 3                                                ║
+// ║   KEKA HERO TRACKER — FINAL BUILD                           ║
+// ║   PART 1 / 3 — CORE ENGINE                                  ║
 // ╚══════════════════════════════════════════════════════════════╝
 
 (function () {
@@ -98,7 +98,13 @@ function minutesBetween(startStr, endStr) {
 
     if (s === null || e === null) return 0;
 
-    const diff = e - s;
+    let diff = e - s;
+
+    // midnight safety
+
+    if (diff < 0) {
+        diff += 24 * 60;
+    }
 
     if (diff <= 0 || diff > 720) return 0;
 
@@ -117,7 +123,11 @@ function liveMinutesFrom(startStr) {
         now.getHours() * 60 +
         now.getMinutes();
 
-    const diff = nowMins - s;
+    let diff = nowMins - s;
+
+    if (diff < 0) {
+        diff += 24 * 60;
+    }
 
     if (diff <= 0 || diff > 840) return 0;
 
@@ -134,95 +144,48 @@ function fmtTime(d) {
 }
 
 // ─────────────────────────────────────────────────────
-// EXTRACT LOGS
+// NEW STABLE KEKA PARSER
 // ─────────────────────────────────────────────────────
 
 function extractLogPairs() {
 
     const pairs = [];
 
-    const allInputs =
-        Array
-            .from(document.querySelectorAll('input'))
-            .filter(el =>
-                !el.closest('#kekaMario') &&
-                !el.closest('#kekaSpider')
+    const rows =
+        Array.from(
+            document.querySelectorAll(
+                'tr, .attendance-info, .day-entry'
+            )
+        );
+
+    rows.forEach(row => {
+
+        const text =
+            row.innerText
+                .replace(/\n/g,' ')
+                .replace(/\s+/g,' ')
+                .trim();
+
+        const matches =
+            text.match(
+                /\d{1,2}:\d{2}\s?(AM|PM)/gi
             );
 
-    const timeInputs =
-        allInputs.filter(el => {
+        if (!matches || !matches.length) return;
 
-            const v = (el.value || '').trim();
+        const start = matches[0];
 
-            return parseTimeToMinutes(v) !== null;
+        const end =
+            matches.length >= 2
+                ? matches[1]
+                : 'MISSING';
+
+        pairs.push({
+            s:start,
+            e:end
         });
 
-    function getRowAncestor(el) {
-
-        let node = el.parentElement;
-
-        for (let i = 0; i < 8; i++) {
-
-            if (!node || node === document.body) break;
-
-            const inputsInNode =
-                node.querySelectorAll('input');
-
-            if (inputsInNode.length >= 2) {
-                return node;
-            }
-
-            node = node.parentElement;
-        }
-
-        return el.parentElement;
-    }
-
-    const rowMap = new Map();
-
-    for (const inp of timeInputs) {
-
-        const row = getRowAncestor(inp);
-
-        if (!rowMap.has(row)) {
-            rowMap.set(row, []);
-        }
-
-        rowMap.get(row).push(inp);
-    }
-
-    for (const [row, inputs] of rowMap) {
-
-        inputs.sort((a, b) => {
-
-            const pos =
-                a.compareDocumentPosition(b);
-
-            return
-                (pos & Node.DOCUMENT_POSITION_FOLLOWING)
-                    ? -1
-                    : 1;
-        });
-
-        const s =
-            (inputs[0].value || '').trim();
-
-        if (parseTimeToMinutes(s) === null) continue;
-
-        let e = 'MISSING';
-
-        if (inputs.length >= 2) {
-
-            const v2 =
-                (inputs[1].value || '').trim();
-
-            if (parseTimeToMinutes(v2) !== null) {
-                e = v2;
-            }
-        }
-
-        pairs.push({ s, e });
-    }
+    });
 
     return pairs;
 }
@@ -312,7 +275,7 @@ function processLogs() {
     };
 }
 // ╔══════════════════════════════════════════════════════════════╗
-// ║   KEKA CINEMATIC TRACKER — MARIO SYSTEM                     ║
+// ║   KEKA HERO TRACKER — FINAL MARIO SYSTEM                    ║
 // ║   PART 2 / 3                                                ║
 // ╚══════════════════════════════════════════════════════════════╝
 
@@ -344,6 +307,7 @@ style.textContent = `
         transform:translateX(120%) scale(.96);
         opacity:0;
     }
+
     to{
         transform:translateX(0) scale(1);
         opacity:1;
@@ -357,58 +321,6 @@ style.textContent = `
 
     50%{
         filter:drop-shadow(0 22px 38px rgba(255,214,0,.24));
-    }
-}
-
-@keyframes km-mrun{
-    0%{
-        left:-44px;
-        bottom:56px;
-    }
-
-    30%{
-        left:118px;
-        bottom:56px;
-    }
-
-    37%{
-        left:142px;
-        bottom:92px;
-    }
-
-    44%{
-        left:166px;
-        bottom:56px;
-    }
-
-    62%{
-        left:242px;
-        bottom:56px;
-    }
-
-    69%{
-        left:268px;
-        bottom:90px;
-    }
-
-    76%{
-        left:294px;
-        bottom:56px;
-    }
-
-    100%{
-        left:420px;
-        bottom:56px;
-    }
-}
-
-@keyframes km-gwalk{
-    0%{
-        left:420px;
-    }
-
-    100%{
-        left:-44px;
     }
 }
 
@@ -432,18 +344,6 @@ style.textContent = `
     }
 }
 
-@keyframes km-ld{
-    0%,100%{
-        opacity:1;
-        transform:scale(1);
-    }
-
-    50%{
-        opacity:.35;
-        transform:scale(.75);
-    }
-}
-
 @keyframes km-cloud{
     from{
         transform:translateX(-20px);
@@ -451,6 +351,28 @@ style.textContent = `
 
     to{
         transform:translateX(20px);
+    }
+}
+
+@keyframes km-run{
+
+    0%{
+        left:-50px;
+    }
+
+    100%{
+        left:420px;
+    }
+}
+
+@keyframes km-goomba{
+
+    0%{
+        left:420px;
+    }
+
+    100%{
+        left:-60px;
     }
 }
 
@@ -495,8 +417,6 @@ const SK = '#fba86f';
 
 const SH = '#5e1205';
 
-const BL = '#4a2200';
-
 const d = (x,y,c)=>px(ctx,S,x,y,c);
 
 [
@@ -521,12 +441,6 @@ d(3,3,SH);
 d(7,3,SH);
 
 [
-[2,4,SH],[3,4,SH],[4,4,SH],
-[6,4,SH],[7,4,SH],[8,4,SH]
-
-].forEach(p=>d(...p));
-
-[
 [0,6,B],[1,6,B],[2,6,B],[3,6,B],[4,6,B],[5,6,B],[6,6,B],[7,6,B],[8,6,B],[9,6,B],[10,6,B]
 
 ].forEach(p=>d(...p));
@@ -535,11 +449,11 @@ d(7,3,SH);
 frame % 2 === 0
 ?
 [
-[2,10,B],[3,10,B],[7,10,B],[8,10,B],[9,10,B]
+[2,10,B],[3,10,B],[7,10,B],[8,10,B]
 ]
 :
 [
-[1,10,B],[2,10,B],[3,10,B],[8,10,B],[9,10,B]
+[1,10,B],[2,10,B],[8,10,B],[9,10,B]
 ]
 ).forEach(p=>d(...p));
 
@@ -654,7 +568,7 @@ top:20px;
 right:20px;
 z-index:2147483646;
 
-width:374px;
+width:370px;
 
 border-radius:28px;
 overflow:hidden;
@@ -677,7 +591,7 @@ widget.innerHTML = `
 <div
 style="
 position:relative;
-height:252px;
+height:240px;
 overflow:hidden;
 
 background:
@@ -689,6 +603,8 @@ linear-gradient(
 );
 "
 >
+
+<!-- CLOUD -->
 
 <svg
 style="
@@ -708,26 +624,21 @@ viewBox="0 0 90 46"
 
 </svg>
 
-<svg
+<!-- GROUND -->
+
+<div
 style="
 position:absolute;
-bottom:0;
 left:0;
+right:0;
+bottom:0;
+height:52px;
+
+background:#c8860a;
 "
-width="374"
-height="56"
-viewBox="0 0 374 56"
->
+></div>
 
-<rect
-x="0"
-y="14"
-width="374"
-height="42"
-fill="#c8860a"
-/>
-
-</svg>
+<!-- MARIO -->
 
 <canvas
 id="kmMarioSprite"
@@ -735,11 +646,17 @@ width="40"
 height="52"
 style="
 position:absolute;
-bottom:56px;
+bottom:52px;
+left:-50px;
+
 image-rendering:pixelated;
-animation:km-mrun 8s linear infinite;
+
+animation:
+km-run 8s linear infinite;
 "
 ></canvas>
+
+<!-- GOOMBA -->
 
 <canvas
 id="kmGoomba"
@@ -747,18 +664,24 @@ width="36"
 height="36"
 style="
 position:absolute;
-bottom:56px;
+bottom:52px;
+left:420px;
+
 image-rendering:pixelated;
-animation:km-gwalk 6s linear infinite;
+
+animation:
+km-goomba 6s linear infinite;
 "
 ></canvas>
+
+<!-- HUD -->
 
 <div
 style="
 position:absolute;
-top:12px;
-left:12px;
-right:12px;
+top:14px;
+left:14px;
+right:14px;
 
 background:rgba(255,255,255,.25);
 
@@ -768,7 +691,7 @@ border:3px solid rgba(255,255,255,.92);
 
 border-radius:20px;
 
-padding:12px 14px 11px;
+padding:14px;
 "
 >
 
@@ -777,7 +700,6 @@ style="
 display:flex;
 justify-content:space-between;
 align-items:center;
-margin-bottom:7px;
 "
 >
 
@@ -791,7 +713,7 @@ letter-spacing:.06em;
 color:#1a237e;
 "
 >
-Grind Tracker
+GRIND TRACKER
 </div>
 
 <div
@@ -799,9 +721,8 @@ style="
 font-size:9px;
 font-weight:800;
 letter-spacing:.2em;
-text-transform:uppercase;
 color:rgba(26,35,126,.52);
-margin-top:1px;
+margin-top:2px;
 "
 >
 WORLD 8-1
@@ -811,41 +732,17 @@ WORLD 8-1
 
 <div
 style="
-display:flex;
-align-items:center;
-gap:5px;
-
-background:#22c55e;
-
-border:2.5px solid #fff;
-
-border-radius:50px;
-
-padding:4px 11px;
-"
->
-
-<div
-style="
-width:7px;
-height:7px;
-border-radius:50%;
-background:#fff;
-animation:km-ld 1.5s ease-in-out infinite;
-"
-></div>
-
-<span
-style="
-font-size:9px;
+font-size:11px;
 font-weight:900;
-color:#fff;
-letter-spacing:.1em;
+background:#22c55e;
+color:white;
+
+padding:6px 10px;
+
+border-radius:999px;
 "
 >
 LIVE
-</span>
-
 </div>
 
 </div>
@@ -853,57 +750,59 @@ LIVE
 <div
 style="
 display:flex;
-align-items:flex-end;
 justify-content:center;
-gap:2px;
+align-items:flex-end;
+gap:3px;
+
+margin-top:14px;
 "
 >
 
-<span
+<div
 id="kmHours"
 style="
-font-size:62px;
-line-height:.88;
+font-size:58px;
 font-weight:900;
+line-height:1;
 color:#1a237e;
 "
 >
 0
-</span>
+</div>
 
-<span
+<div
 style="
-font-size:16px;
+font-size:15px;
 font-weight:900;
-color:rgba(26,35,126,.52);
 margin-bottom:8px;
+color:rgba(26,35,126,.6);
 "
 >
 h
-</span>
+</div>
 
-<span
+<div
 id="kmMins"
 style="
-font-size:62px;
-line-height:.88;
+font-size:58px;
 font-weight:900;
+line-height:1;
 color:#1a237e;
 "
 >
 00
-</span>
+</div>
 
-<span
+<div
 style="
-font-size:16px;
+font-size:15px;
 font-weight:900;
-color:rgba(26,35,126,.52);
 margin-bottom:8px;
+color:rgba(26,35,126,.6);
 "
 >
 m
-</span>
+</div>
 
 </div>
 
@@ -911,9 +810,11 @@ m
 style="
 height:12px;
 border-radius:999px;
-background:rgba(26,35,126,.16);
+background:rgba(26,35,126,.14);
+
 overflow:hidden;
-margin:3px 3px 6px;
+
+margin-top:10px;
 "
 >
 
@@ -922,6 +823,7 @@ id="kmProgress"
 style="
 height:100%;
 width:0%;
+
 border-radius:999px;
 
 background:
@@ -943,10 +845,14 @@ km-progress-stripe 1.4s linear infinite;
 <div
 id="kmVibe"
 style="
+margin-top:10px;
+
 font-size:10px;
-font-weight:800;
 font-style:italic;
+font-weight:800;
+
 color:rgba(26,35,126,.58);
+
 text-align:center;
 "
 >
@@ -956,6 +862,8 @@ text-align:center;
 </div>
 
 </div>
+
+<!-- BOTTOM -->
 
 <div
 style="
@@ -975,32 +883,32 @@ style="
 display:flex;
 justify-content:space-between;
 align-items:center;
-margin-bottom:7px;
+
+margin-bottom:8px;
 "
 >
 
-<span
+<div
 style="
-font-size:9px;
+font-size:10px;
 font-weight:900;
-letter-spacing:.2em;
-text-transform:uppercase;
-color:rgba(255,255,255,.68);
+letter-spacing:.18em;
+color:rgba(255,255,255,.7);
 "
 >
-Coins to Freedom
-</span>
+COINS TO FREEDOM
+</div>
 
-<span
+<div
 id="kmPct"
 style="
-font-size:13px;
+font-size:14px;
 font-weight:900;
 color:#ffe566;
 "
 >
 0%
-</span>
+</div>
 
 </div>
 
@@ -1008,7 +916,7 @@ color:#ffe566;
 id="kmCoins"
 style="
 display:flex;
-gap:3px;
+gap:4px;
 "
 ></div>
 
@@ -1042,6 +950,10 @@ widget.querySelector('#kmCoins')
 
 };
 
+// ─────────────────────────────────────────
+// START SPRITES
+// ─────────────────────────────────────────
+
 const mc =
     document.getElementById('kmMarioSprite');
 
@@ -1072,7 +984,7 @@ buildMarioCoins(0);
 }
 
 // ─────────────────────────────────────────────────────
-// UPDATE MARIO UI
+// UPDATE MARIO
 // ─────────────────────────────────────────────────────
 
 function updateMarioUI(
@@ -1103,14 +1015,26 @@ setIfChanged(
 refs.progress.style.width =
     `${pct}%`;
 
-setIfChanged(
-    refs.vibe,
-    pct >= 100
-        ?
-        '"castle clear bhai..."'
-        :
-        '"coins collect thai rahya che..."'
-);
+if (pct >= 100) {
+
+    refs.vibe.textContent =
+        '"nikal gayo bhai..."';
+
+} else if (pct >= 75) {
+
+    refs.vibe.textContent =
+        '"castle najik che..."';
+
+} else if (pct >= 50) {
+
+    refs.vibe.textContent =
+        '"aadho grind thai gayo..."';
+
+} else {
+
+    refs.vibe.textContent =
+        '"coins collect thai rahya che..."';
+}
 
 buildMarioCoins(pct);
 
@@ -1126,9 +1050,18 @@ createMarioUI();
 
 }
 // ╔══════════════════════════════════════════════════════════════╗
-// ║   KEKA CINEMATIC TRACKER — SPIDER-MAN HUD                  ║
+// ║   KEKA HERO TRACKER — FINAL SPIDER HUD                      ║
 // ║   PART 3 / 3                                                ║
 // ╚══════════════════════════════════════════════════════════════╝
+
+// ─────────────────────────────────────────────────────
+// YOUR PNG URL
+// ─────────────────────────────────────────────────────
+
+// Replace this with YOUR RAW GITHUB URL
+
+const SPIDER_PNG =
+'https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/spiderman-swing.png';
 
 // ─────────────────────────────────────────────────────
 // SPIDER STYLES
@@ -1153,13 +1086,18 @@ style.textContent = `
 }
 
 @keyframes sp-slidein{
+
     from{
-        transform:translateX(120%) scale(.96);
+        transform:
+        translateX(120%) scale(.96);
+
         opacity:0;
     }
 
     to{
-        transform:translateX(0) scale(1);
+        transform:
+        translateX(0) scale(1);
+
         opacity:1;
     }
 }
@@ -1177,6 +1115,7 @@ style.textContent = `
 }
 
 @keyframes sp-glow{
+
     0%,100%{
         box-shadow:
         0 0 25px rgba(255,80,80,.18),
@@ -1191,6 +1130,7 @@ style.textContent = `
 }
 
 @keyframes sp-float{
+
     0%,100%{
         transform:translateY(0);
     }
@@ -1201,16 +1141,22 @@ style.textContent = `
 }
 
 @keyframes sp-shimmer{
+
     0%{
-        transform:translateX(-140%) rotate(18deg);
+        transform:
+        translateX(-140%)
+        rotate(18deg);
     }
 
     100%{
-        transform:translateX(180%) rotate(18deg);
+        transform:
+        translateX(180%)
+        rotate(18deg);
     }
 }
 
 @keyframes sp-complete{
+
     0%,100%{
         box-shadow:
         0 0 30px rgba(34,197,94,.25),
@@ -1224,8 +1170,66 @@ style.textContent = `
     }
 }
 
+@keyframes spSwingMove{
+
+    0%{
+        left:-140px;
+        top:70px;
+
+        transform:
+        rotate(-28deg)
+        scale(.92);
+    }
+
+    15%{
+        top:100px;
+    }
+
+    25%{
+        left:20px;
+
+        transform:
+        rotate(18deg)
+        scale(1);
+    }
+
+    40%{
+        top:60px;
+    }
+
+    50%{
+        left:110px;
+
+        transform:
+        rotate(-12deg)
+        scale(1.02);
+    }
+
+    70%{
+        top:110px;
+    }
+
+    75%{
+        left:210px;
+
+        transform:
+        rotate(18deg)
+        scale(1);
+    }
+
+    100%{
+        left:430px;
+        top:70px;
+
+        transform:
+        rotate(-24deg)
+        scale(.92);
+    }
+}
+
 .sp-complete{
-    animation:sp-complete 1.8s ease-in-out infinite !important;
+    animation:
+    sp-complete 1.8s ease-in-out infinite !important;
 }
 
 `;
@@ -1250,12 +1254,14 @@ widget.id = 'kekaSpider';
 
 widget.style.cssText = `
 position:fixed;
+
 top:20px;
 right:20px;
+
 z-index:2147483646;
 
-width:420px;
-height:760px;
+width:390px;
+height:560px;
 
 border-radius:34px;
 
@@ -1280,27 +1286,9 @@ sp-slidein .7s cubic-bezier(.34,1.3,.64,1) forwards,
 sp-glow 4s ease-in-out infinite;
 
 backdrop-filter:blur(10px);
-
-overflow:hidden;
 `;
 
 widget.innerHTML = `
-
-<div
-style="
-position:absolute;
-inset:0;
-
-background:
-linear-gradient(
-180deg,
-rgba(255,255,255,.08),
-rgba(255,255,255,.02)
-);
-
-pointer-events:none;
-"
-></div>
 
 <!-- CITY BACKGROUND -->
 
@@ -1313,6 +1301,36 @@ opacity:.95;
 "
 ></canvas>
 
+<!-- SPIDER PNG -->
+
+<img
+id="spSwinger"
+src="${SPIDER_PNG}"
+
+style="
+position:absolute;
+
+top:70px;
+left:-120px;
+
+width:150px;
+height:auto;
+
+z-index:4;
+
+pointer-events:none;
+
+transform-origin:top center;
+
+filter:
+drop-shadow(0 10px 18px rgba(0,0,0,.45))
+drop-shadow(0 0 18px rgba(255,60,60,.18));
+
+animation:
+spSwingMove 9s ease-in-out infinite;
+"
+/>
+
 <!-- DARK OVERLAY -->
 
 <div
@@ -1324,7 +1342,7 @@ background:
 linear-gradient(
 180deg,
 rgba(0,0,0,.05),
-rgba(0,0,0,.28)
+rgba(0,0,0,.30)
 );
 "
 ></div>
@@ -1351,14 +1369,10 @@ z-index:5;
 <div
 style="
 font-family:'Orbitron',sans-serif;
-font-size:26px;
+font-size:24px;
 font-weight:900;
 letter-spacing:3px;
 color:white;
-
-text-shadow:
-0 0 18px rgba(255,255,255,.45),
-0 0 30px rgba(255,0,0,.4);
 "
 >
 SPIDER HUD
@@ -1366,7 +1380,7 @@ SPIDER HUD
 
 <div
 style="
-font-size:11px;
+font-size:10px;
 letter-spacing:2px;
 color:rgba(255,255,255,.72);
 margin-top:2px;
@@ -1386,9 +1400,10 @@ gap:8px;
 
 <button
 id="spMin"
+
 style="
-width:34px;
-height:34px;
+width:32px;
+height:32px;
 
 border:none;
 
@@ -1410,9 +1425,10 @@ backdrop-filter:blur(8px);
 
 <button
 id="spClose"
+
 style="
-width:34px;
-height:34px;
+width:32px;
+height:32px;
 
 border:none;
 
@@ -1436,16 +1452,18 @@ backdrop-filter:blur(8px);
 
 </div>
 
-<!-- MAIN CONTENT -->
+<!-- CONTENT -->
 
 <div
 id="spContent"
+
 style="
 position:absolute;
+
 top:90px;
-left:20px;
-right:20px;
-bottom:20px;
+left:18px;
+right:18px;
+bottom:18px;
 
 display:flex;
 flex-direction:column;
@@ -1458,34 +1476,19 @@ flex-direction:column;
 style="
 position:relative;
 
-width:240px;
-height:240px;
+width:170px;
+height:170px;
 
 margin:0 auto;
 
-animation:sp-float 4s ease-in-out infinite;
+animation:
+sp-float 4s ease-in-out infinite;
 "
 >
 
-<div
-style="
-position:absolute;
-inset:0;
+<svg
+viewBox="0 0 170 170"
 
-border-radius:50%;
-
-background:
-radial-gradient(
-circle,
-rgba(255,255,255,.22),
-rgba(255,255,255,.04)
-);
-
-backdrop-filter:blur(10px);
-"
-></div>
-
-<svg viewBox="0 0 240 240"
 style="
 position:absolute;
 inset:0;
@@ -1493,13 +1496,13 @@ inset:0;
 >
 
 <circle
-cx="120"
-cy="120"
-r="88"
+cx="85"
+cy="85"
+r="62"
 
 stroke="rgba(255,255,255,.12)"
 
-stroke-width="6"
+stroke-width="5"
 
 fill="none"
 />
@@ -1507,23 +1510,23 @@ fill="none"
 <circle
 id="spProgressCircle"
 
-cx="120"
-cy="120"
-r="88"
+cx="85"
+cy="85"
+r="62"
 
 stroke="url(#spGrad)"
 
-stroke-width="12"
+stroke-width="10"
 
 fill="none"
 
 stroke-linecap="round"
 
-transform="rotate(-90 120 120)"
+transform="rotate(-90 85 85)"
 
-stroke-dasharray="553"
+stroke-dasharray="390"
 
-stroke-dashoffset="553"
+stroke-dashoffset="390"
 />
 
 <defs>
@@ -1540,15 +1543,17 @@ stroke-dashoffset="553"
 
 <g
 style="
-animation:sp-spin 16s linear infinite;
+animation:
+sp-spin 16s linear infinite;
+
 transform-origin:center;
 "
 >
 
 <circle
-cx="120"
-cy="120"
-r="104"
+cx="85"
+cy="85"
+r="74"
 
 stroke="rgba(255,255,255,.18)"
 
@@ -1563,15 +1568,17 @@ fill="none"
 
 <g
 style="
-animation:sp-spin-rev 10s linear infinite;
+animation:
+sp-spin-rev 10s linear infinite;
+
 transform-origin:center;
 "
 >
 
 <circle
-cx="120"
-cy="120"
-r="72"
+cx="85"
+cy="85"
+r="50"
 
 stroke="rgba(255,0,0,.38)"
 
@@ -1600,12 +1607,14 @@ flex-direction:column;
 
 <div
 id="spHours"
+
 style="
-font-size:64px;
+font-size:46px;
 font-weight:900;
-color:white;
 
 line-height:1;
+
+color:white;
 
 text-shadow:
 0 0 18px rgba(255,255,255,.65),
@@ -1617,11 +1626,13 @@ text-shadow:
 
 <div
 id="spMins"
+
 style="
-font-size:24px;
-color:#9fd3ff;
+font-size:18px;
 
 letter-spacing:3px;
+
+color:#9fd3ff;
 "
 >
 00m
@@ -1631,11 +1642,11 @@ letter-spacing:3px;
 
 </div>
 
-<!-- MISSION CARD -->
+<!-- STATS -->
 
 <div
 style="
-margin-top:24px;
+margin-top:22px;
 
 background:
 linear-gradient(
@@ -1661,6 +1672,7 @@ overflow:hidden;
 <div
 style="
 position:absolute;
+
 top:-30px;
 left:-70px;
 
@@ -1669,7 +1681,8 @@ height:180px;
 
 background:rgba(255,255,255,.18);
 
-animation:sp-shimmer 6s linear infinite;
+animation:
+sp-shimmer 6s linear infinite;
 "
 ></div>
 
@@ -1692,7 +1705,7 @@ gap:14px;
 
 <div
 style="
-font-size:11px;
+font-size:10px;
 letter-spacing:2px;
 color:rgba(255,255,255,.65);
 "
@@ -1702,8 +1715,9 @@ REMAINING
 
 <div
 id="spRemaining"
+
 style="
-font-size:28px;
+font-size:24px;
 font-weight:700;
 color:white;
 margin-top:5px;
@@ -1718,7 +1732,7 @@ margin-top:5px;
 
 <div
 style="
-font-size:11px;
+font-size:10px;
 letter-spacing:2px;
 color:rgba(255,255,255,.65);
 "
@@ -1728,8 +1742,9 @@ BREAK
 
 <div
 id="spBreak"
+
 style="
-font-size:28px;
+font-size:24px;
 font-weight:700;
 color:white;
 margin-top:5px;
@@ -1744,7 +1759,7 @@ margin-top:5px;
 
 <div
 style="
-font-size:11px;
+font-size:10px;
 letter-spacing:2px;
 color:rgba(255,255,255,.65);
 "
@@ -1754,8 +1769,9 @@ HALF DAY
 
 <div
 id="spHalf"
+
 style="
-font-size:24px;
+font-size:20px;
 font-weight:700;
 color:white;
 margin-top:5px;
@@ -1770,7 +1786,7 @@ margin-top:5px;
 
 <div
 style="
-font-size:11px;
+font-size:10px;
 letter-spacing:2px;
 color:rgba(255,255,255,.65);
 "
@@ -1780,8 +1796,9 @@ MISSION END
 
 <div
 id="spFull"
+
 style="
-font-size:24px;
+font-size:20px;
 font-weight:700;
 color:white;
 margin-top:5px;
@@ -1796,10 +1813,11 @@ margin-top:5px;
 
 <div
 id="spMission"
-style="
-margin-top:20px;
 
-padding:16px;
+style="
+margin-top:18px;
+
+padding:14px;
 
 border-radius:18px;
 
@@ -1810,10 +1828,11 @@ rgba(255,0,0,.16),
 rgba(0,120,255,.16)
 );
 
-font-size:15px;
-color:white;
+font-size:14px;
 
 line-height:1.5;
+
+color:white;
 "
 >
 Swinging through Manhattan...
@@ -1872,10 +1891,10 @@ widget.querySelector('#spContent')
 // ─────────────────────────────────────────
 
 const minBtn =
-    widget.querySelector('#spMin');
+widget.querySelector('#spMin');
 
 const closeBtn =
-    widget.querySelector('#spClose');
+widget.querySelector('#spClose');
 
 let minimized = false;
 
@@ -1890,8 +1909,8 @@ minBtn.addEventListener('click',()=>{
 
     widget.style.height =
         minimized
-            ? '90px'
-            : '760px';
+            ? '82px'
+            : '560px';
 
     minBtn.textContent =
         minimized
@@ -1921,29 +1940,29 @@ startSpiderBackground();
 function startSpiderBackground() {
 
 const canvas =
-    document.getElementById('spidermanCanvas');
+document.getElementById('spidermanCanvas');
 
 if (!canvas) return;
 
 const ctx = canvas.getContext('2d');
 
-let w = canvas.width = 420;
+let w = canvas.width = 390;
 
-let h = canvas.height = 760;
+let h = canvas.height = 560;
 
 const buildings = [];
 
-for (let i = 0; i < 24; i++) {
+for (let i = 0; i < 20; i++) {
 
     buildings.push({
 
-        x: i * 24,
+        x: i * 20,
 
-        y: h - (100 + Math.random() * 260),
+        y: h - (100 + Math.random() * 180),
 
-        w: 22 + Math.random() * 30,
+        w: 20 + Math.random() * 24,
 
-        h: 120 + Math.random() * 240
+        h: 100 + Math.random() * 160
 
     });
 }
@@ -1957,7 +1976,7 @@ function render() {
     // clouds
 
     ctx.fillStyle =
-        'rgba(255,255,255,.05)';
+    'rgba(255,255,255,.05)';
 
     for (let i = 0; i < 6; i++) {
 
@@ -1965,7 +1984,7 @@ function render() {
 
         ctx.arc(
             (i * 120 + t * .2) % (w + 200) - 100,
-            100 + Math.sin(i + t * .002) * 12,
+            90 + Math.sin(i + t * .002) * 12,
             40,
             0,
             Math.PI * 2
@@ -1979,12 +1998,12 @@ function render() {
     buildings.forEach((b)=>{
 
         const g =
-            ctx.createLinearGradient(
-                0,
-                b.y,
-                0,
-                h
-            );
+        ctx.createLinearGradient(
+            0,
+            b.y,
+            0,
+            h
+        );
 
         g.addColorStop(
             0,
@@ -2020,11 +2039,11 @@ function render() {
                 if (Math.random() > .72) {
 
                     ctx.fillStyle =
-                        Math.random() > .5
-                            ?
-                            'rgba(255,190,80,.7)'
-                            :
-                            'rgba(120,180,255,.6)';
+                    Math.random() > .5
+                    ?
+                    'rgba(255,190,80,.7)'
+                    :
+                    'rgba(120,180,255,.6)';
 
                     ctx.fillRect(wx,wy,4,6);
                 }
@@ -2038,18 +2057,18 @@ function render() {
     for (let i = 0; i < 10; i++) {
 
         ctx.strokeStyle =
-            i % 2
-                ?
-                'rgba(255,80,80,.35)'
-                :
-                'rgba(255,255,180,.28)';
+        i % 2
+        ?
+        'rgba(255,80,80,.35)'
+        :
+        'rgba(255,255,180,.28)';
 
         ctx.lineWidth = 2;
 
         ctx.beginPath();
 
         const yy =
-            h - 40 + Math.sin(i) * 6;
+        h - 40 + Math.sin(i) * 6;
 
         ctx.moveTo(
             (i * 60 + t * 1.4) % (w + 100) - 100,
@@ -2089,61 +2108,61 @@ mStr
 ) {
 
 setIfChanged(
-    refs.hours,
-    `${h}h`
+refs.hours,
+`${h}h`
 );
 
 setIfChanged(
-    refs.mins,
-    `${mStr}m`
+refs.mins,
+`${mStr}m`
 );
 
 setIfChanged(
-    refs.remaining,
-    `${Math.floor(left/60)}h`
+refs.remaining,
+`${Math.floor(left/60)}h`
 );
 
 setIfChanged(
-    refs.breakEl,
-    `${breaks}m`
+refs.breakEl,
+`${breaks}m`
 );
 
-const circumference = 553;
+const circumference = 390;
 
 refs.progress.style.strokeDashoffset =
-    circumference -
-    (pct / 100) * circumference;
+circumference -
+(pct / 100) * circumference;
 
 if (pct < 25) {
 
     refs.mission.textContent =
-        'Entering Manhattan patrol route.';
+    'Entering Manhattan patrol route.';
 
 } else if (pct < 50) {
 
     refs.mission.textContent =
-        'Spider-Sense activated across NYC.';
+    'Spider-Sense activated across NYC.';
 
 } else if (pct < 75) {
 
     refs.mission.textContent =
-        'Swinging through Midtown at full speed.';
+    'Swinging through Midtown at full speed.';
 
 } else if (pct < 100) {
 
     refs.mission.textContent =
-        'Final villain chase sequence active.';
+    'Final villain chase sequence active.';
 
 } else {
 
     refs.mission.textContent =
-        'MISSION COMPLETE. Manhattan secured.';
+    'MISSION COMPLETE. Manhattan secured.';
 }
 
 if (data.firstStart) {
 
     const s =
-        parseTimeToMinutes(data.firstStart);
+    parseTimeToMinutes(data.firstStart);
 
     if (s !== null) {
 
@@ -2157,22 +2176,22 @@ if (data.firstStart) {
         );
 
         const half =
-            new Date(
-                base.getTime() +
-                (
-                    HALF_DAY_MINUTES +
-                    breaks
-                ) * 60000
-            );
+        new Date(
+            base.getTime() +
+            (
+                HALF_DAY_MINUTES +
+                breaks
+            ) * 60000
+        );
 
         const full =
-            new Date(
-                base.getTime() +
-                (
-                    WORK_MINUTES +
-                    breaks
-                ) * 60000
-            );
+        new Date(
+            base.getTime() +
+            (
+                WORK_MINUTES +
+                breaks
+            ) * 60000
+        );
 
         setIfChanged(
             refs.half,
@@ -2205,38 +2224,38 @@ function updateUI() {
 processLogs();
 
 const data =
-    window.KekaHoursLatest ||
-    {
-        totalMinutes:0,
-        breakMinutes:0,
-        firstStart:null
-    };
+window.KekaHoursLatest ||
+{
+    totalMinutes:0,
+    breakMinutes:0,
+    firstStart:null
+};
 
 const total =
-    Math.max(0,data.totalMinutes || 0);
+Math.max(0,data.totalMinutes || 0);
 
 const breaks =
-    Math.max(0,data.breakMinutes || 0);
+Math.max(0,data.breakMinutes || 0);
 
 const left =
-    Math.max(0,WORK_MINUTES - total);
+Math.max(0,WORK_MINUTES - total);
 
 const pct =
-    Math.min(
-        100,
-        Math.round(
-            (total / WORK_MINUTES) * 100
-        )
-    );
+Math.min(
+    100,
+    Math.round(
+        (total / WORK_MINUTES) * 100
+    )
+);
 
 const h =
-    Math.floor(total / 60);
+Math.floor(total / 60);
 
 const m =
-    total % 60;
+total % 60;
 
 const mStr =
-    String(m).padStart(2,'0');
+String(m).padStart(2,'0');
 
 if (THEME === 'mario') {
 
@@ -2272,16 +2291,16 @@ if (THEME === 'mario') {
 function startObservers() {
 
 const observer =
-    new MutationObserver(()=>{
+new MutationObserver(()=>{
 
-        clearTimeout(mutationTimer);
+    clearTimeout(mutationTimer);
 
-        mutationTimer =
-            setTimeout(()=>{
-                updateUI();
-            },1000);
+    mutationTimer =
+    setTimeout(()=>{
+        updateUI();
+    },1000);
 
-    });
+});
 
 observer.observe(document.body,{
     childList:true,
