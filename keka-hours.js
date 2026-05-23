@@ -147,7 +147,7 @@ function fmtTime(d) {
 // NEW STABLE KEKA PARSER
 // ─────────────────────────────────────────────────────
 
-function extractLogPairs() {function extractLogPairs() {
+function extractLogPairs() {
 
     const pairs = [];
 
@@ -1178,7 +1178,7 @@ style.textContent = `
     }
 }
 
-@keyframes spSwingMove{@keyframes spSwingMove{
+@keyframes spSwingMove{
 
     0%{
         left:-160px;
