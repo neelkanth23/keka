@@ -1061,7 +1061,7 @@ createMarioUI();
 // Replace this with YOUR RAW GITHUB URL
 
 const SPIDER_PNG =
-'https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/spiderman-swing.png';
+'https://raw.githubusercontent.com/neelkanth23/keka/main/spidermon.png';
 
 // ─────────────────────────────────────────────────────
 // SPIDER STYLES
