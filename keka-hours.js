@@ -33,7 +33,7 @@ const WORK_MINUTES = 8 * 60;
 
 const HALF_DAY_MINUTES = 4 * 60;
 
-const SCAN_INTERVAL_MS = 20000;
+const SCAN_INTERVAL_MS = 5000;
 
 // ─────────────────────────────────────────────────────
 // GLOBALS
@@ -147,20 +147,28 @@ function fmtTime(d) {
 // NEW STABLE KEKA PARSER
 // ─────────────────────────────────────────────────────
 
-function extractLogPairs() {
+function extractLogPairs() {function extractLogPairs() {
 
     const pairs = [];
 
-const allText =
-document.body.innerText
-.replace(/Weekly-off/gi,'')
-.replace(/Holiday/gi,'')
-.replace(/Leave/gi,'');
+    // ONLY biometric log area
+
+    const biometricSection =
+        Array.from(document.querySelectorAll('div'))
+        .find(el =>
+            /Biometric Logs/i.test(el.innerText)
+        );
+
+    if (!biometricSection) {
+        return pairs;
+    }
+
+    // capture ONLY visible biometric timestamps
 
     const matches =
         [
-            ...allText.matchAll(
-                /(\d{1,2}:\d{2}\s?(?:AM|PM))/gi
+            ...biometricSection.innerText.matchAll(
+                /(\d{1,2}:\d{2}\s?(?:am|pm))/gi
             )
         ]
         .map(m => m[1]);
@@ -169,33 +177,18 @@ document.body.innerText
         return pairs;
     }
 
-    // Remove duplicates while preserving order
+    // sequential pairing
 
-    const unique = [];
-
-    matches.forEach(t => {
-
-        if (
-            !unique.length ||
-            unique[unique.length - 1] !== t
-        ) {
-            unique.push(t);
-        }
-
-    });
-
-    // Pair sequentially
-
-    for (let i = 0; i < unique.length; i += 2) {
+    for (let i = 0; i < matches.length; i += 2) {
 
         pairs.push({
 
-            s: unique[i],
+            s: matches[i],
 
             e:
-                unique[i + 1]
+                matches[i + 1]
                 ?
-                unique[i + 1]
+                matches[i + 1]
                 : 'MISSING'
 
         });
@@ -1185,63 +1178,49 @@ style.textContent = `
     }
 }
 
-@keyframes spSwingMove{
+@keyframes spSwingMove{@keyframes spSwingMove{
 
     0%{
-        left:430px;
-        top:70px;
+        left:-160px;
+        top:20px;
 
         transform:
-        scaleX(-1)
-        rotate(-28deg)
+        rotate(-26deg)
         scale(.92);
     }
 
-    15%{
-        top:100px;
-    }
-
     25%{
-        left:250px;
+        left:20px;
+        top:40px;
 
         transform:
-        scaleX(-1)
-        rotate(18deg)
+        rotate(16deg)
         scale(1);
     }
 
-    40%{
-        top:60px;
-    }
-
     50%{
-        left:140px;
+        left:120px;
+        top:10px;
 
         transform:
-        scaleX(-1)
         rotate(-12deg)
-        scale(1.02);
-    }
-
-    70%{
-        top:110px;
+        scale(1.03);
     }
 
     75%{
-        left:20px;
+        left:230px;
+        top:35px;
 
         transform:
-        scaleX(-1)
         rotate(18deg)
         scale(1);
     }
 
     100%{
-        left:-140px;
-        top:70px;
+        left:420px;
+        top:20px;
 
         transform:
-        scaleX(-1)
         rotate(-24deg)
         scale(.92);
     }
@@ -1330,7 +1309,7 @@ src="${SPIDER_PNG}"
 style="
 position:absolute;
 
-top:70px;
+top:30px;
 left:-120px;
 
 width:150px;
