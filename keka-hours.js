@@ -1,9 +1,7 @@
 // ╔══════════════════════════════════════════════════════════════╗
-// ║   KEKA HERO TRACKER — v4                                    ║
-// ║   UI: Original orange sunset NYC sky restored               ║
-// ║   Spider-Man: JS swing, L→R only (resets), always faces R  ║
-// ║   Calc: v3 precision kept (RANGE_RE, fmtMinutes)            ║
-// ║   Bottom: animated web-shooter canvas instead of plain box  ║
+// ║   KEKA HERO TRACKER — v5                                    ║
+// ║   FIX: Mario widget given fixed height + layout restored    ║
+// ║   Spider-Man: unchanged from v4                             ║
 // ╚══════════════════════════════════════════════════════════════╝
 
 (function () {
@@ -231,42 +229,133 @@ function createMarioUI() {
     injectMarioStyles();
     if (document.getElementById('kekaMario')) return;
     const widget=document.createElement('div'); widget.id='kekaMario';
-    widget.style.cssText=`position:fixed;top:20px;right:20px;z-index:2147483646;width:370px;border-radius:28px;overflow:hidden;background:#e8282b;box-shadow:0 0 0 4px #fff,0 0 0 8px #e8282b,0 0 0 12px #fff,0 24px 70px rgba(0,0,0,.42);animation:km-slidein .65s cubic-bezier(.34,1.4,.64,1) forwards,km-soft-glow 4s ease-in-out infinite .9s;`;
+
+    // ── FIX: explicit height + no overflow clipping on outer wrapper ──
+    widget.style.cssText=`
+        position:fixed;
+        top:20px;
+        right:20px;
+        z-index:2147483646;
+        width:370px;
+        height:auto;
+        min-height:420px;
+        border-radius:28px;
+        overflow:visible;
+        background:transparent;
+        box-shadow:0 0 0 4px #fff,0 0 0 8px #e8282b,0 0 0 12px #fff,0 24px 70px rgba(0,0,0,.42);
+        animation:km-slidein .65s cubic-bezier(.34,1.4,.64,1) forwards,km-soft-glow 4s ease-in-out infinite .9s;
+        display:flex;
+        flex-direction:column;
+        border-radius:28px;
+    `;
+
     widget.innerHTML=`
-<div style="position:relative;height:240px;overflow:hidden;background:linear-gradient(180deg,#4f8ffc 0%,#78b3ff 58%,#a9d5ff 100%);">
+<!-- SKY / ANIMATION section -->
+<div style="
+    position:relative;
+    height:200px;
+    overflow:hidden;
+    background:linear-gradient(180deg,#4f8ffc 0%,#78b3ff 58%,#a9d5ff 100%);
+    border-radius:28px 28px 0 0;
+    flex-shrink:0;
+">
   <svg style="position:absolute;top:18px;left:12px;animation:km-cloud 7s ease-in-out infinite alternate;" width="90" height="46" viewBox="0 0 90 46">
     <ellipse cx="45" cy="37" rx="42" ry="18" fill="white"/><ellipse cx="28" cy="30" rx="22" ry="20" fill="white"/><ellipse cx="55" cy="28" rx="24" ry="22" fill="white"/>
   </svg>
   <div style="position:absolute;left:0;right:0;bottom:0;height:52px;background:#c8860a;"></div>
   <canvas id="kmMarioSprite" width="40" height="52" style="position:absolute;bottom:52px;left:-50px;image-rendering:pixelated;animation:km-run 8s linear infinite;"></canvas>
   <canvas id="kmGoomba" width="36" height="36" style="position:absolute;bottom:52px;left:420px;image-rendering:pixelated;animation:km-goomba 6s linear infinite;"></canvas>
-  <div style="position:absolute;top:14px;left:14px;right:14px;background:rgba(255,255,255,.25);backdrop-filter:blur(20px);border:3px solid rgba(255,255,255,.92);border-radius:20px;padding:14px;">
+
+  <!-- Stats card floats over the sky -->
+  <div style="position:absolute;top:10px;left:10px;right:10px;background:rgba(255,255,255,.28);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:3px solid rgba(255,255,255,.92);border-radius:20px;padding:12px 14px;">
     <div style="display:flex;justify-content:space-between;align-items:center;">
-      <div><div style="font-size:13px;font-weight:900;letter-spacing:.06em;color:#1a237e;">GRIND TRACKER</div><div style="font-size:9px;font-weight:800;letter-spacing:.2em;color:rgba(26,35,126,.52);margin-top:2px;">WORLD 8-1</div></div>
-      <div style="font-size:11px;font-weight:900;background:#22c55e;color:white;padding:6px 10px;border-radius:999px;">LIVE</div>
+      <div>
+        <div style="font-size:13px;font-weight:900;letter-spacing:.06em;color:#1a237e;">GRIND TRACKER</div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:.2em;color:rgba(26,35,126,.52);margin-top:2px;">WORLD 8-1</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <div style="font-size:11px;font-weight:900;background:#22c55e;color:white;padding:5px 10px;border-radius:999px;">LIVE</div>
+        <button id="kmClose" style="width:28px;height:28px;border:none;border-radius:50%;background:rgba(255,255,255,.25);color:#1a237e;font-size:16px;cursor:pointer;font-weight:900;line-height:1;">×</button>
+      </div>
     </div>
-    <div style="display:flex;justify-content:center;align-items:flex-end;gap:3px;margin-top:14px;">
-      <div id="kmHours" style="font-size:58px;font-weight:900;line-height:1;color:#1a237e;">0</div>
-      <div style="font-size:15px;font-weight:900;margin-bottom:8px;color:rgba(26,35,126,.6);">h</div>
-      <div id="kmMins" style="font-size:58px;font-weight:900;line-height:1;color:#1a237e;">00</div>
-      <div style="font-size:15px;font-weight:900;margin-bottom:8px;color:rgba(26,35,126,.6);">m</div>
+    <div style="display:flex;justify-content:center;align-items:flex-end;gap:3px;margin-top:10px;">
+      <div id="kmHours" style="font-size:54px;font-weight:900;line-height:1;color:#1a237e;">0</div>
+      <div style="font-size:14px;font-weight:900;margin-bottom:7px;color:rgba(26,35,126,.6);">h</div>
+      <div id="kmMins" style="font-size:54px;font-weight:900;line-height:1;color:#1a237e;">00</div>
+      <div style="font-size:14px;font-weight:900;margin-bottom:7px;color:rgba(26,35,126,.6);">m</div>
     </div>
-    <div style="height:12px;border-radius:999px;background:rgba(26,35,126,.14);overflow:hidden;margin-top:10px;">
-      <div id="kmProgress" style="height:100%;width:0%;border-radius:999px;background:repeating-linear-gradient(45deg,#ffd600 0,#ffd600 8px,#f9a825 8px,#f9a825 16px);animation:km-progress-stripe 1.4s linear infinite;"></div>
+    <div style="height:11px;border-radius:999px;background:rgba(26,35,126,.14);overflow:hidden;margin-top:8px;">
+      <div id="kmProgress" style="height:100%;width:0%;border-radius:999px;background:repeating-linear-gradient(45deg,#ffd600 0,#ffd600 8px,#f9a825 8px,#f9a825 16px);animation:km-progress-stripe 1.4s linear infinite;transition:width .6s ease;"></div>
     </div>
-    <div id="kmVibe" style="margin-top:10px;font-size:10px;font-style:italic;font-weight:800;color:rgba(26,35,126,.58);text-align:center;">"kaam sharu kar..."</div>
+    <div id="kmVibe" style="margin-top:8px;font-size:10px;font-style:italic;font-weight:800;color:rgba(26,35,126,.58);text-align:center;">"kaam sharu kar..."</div>
   </div>
 </div>
-<div style="background:linear-gradient(180deg,#ef3033 0%,#d71920 100%);padding:14px;">
+
+<!-- STATS ROW -->
+<div style="
+    background:linear-gradient(180deg,#e8282b 0%,#c41f22 100%);
+    padding:10px 14px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    flex-shrink:0;
+">
+  <div style="background:rgba(0,0,0,.15);border-radius:12px;padding:8px 10px;">
+    <div style="font-size:9px;font-weight:900;letter-spacing:.15em;color:rgba(255,255,255,.6);margin-bottom:3px;">REMAINING</div>
+    <div id="kmRemaining" style="font-size:20px;font-weight:900;color:white;">8h 0m</div>
+  </div>
+  <div style="background:rgba(0,0,0,.15);border-radius:12px;padding:8px 10px;">
+    <div style="font-size:9px;font-weight:900;letter-spacing:.15em;color:rgba(255,255,255,.6);margin-bottom:3px;">BREAK</div>
+    <div id="kmBreak" style="font-size:20px;font-weight:900;color:white;">0m</div>
+  </div>
+  <div style="background:rgba(0,0,0,.15);border-radius:12px;padding:8px 10px;">
+    <div style="font-size:9px;font-weight:900;letter-spacing:.15em;color:rgba(255,255,255,.6);margin-bottom:3px;">HALF DAY</div>
+    <div id="kmHalf" style="font-size:16px;font-weight:900;color:#ffe566;">--</div>
+  </div>
+  <div style="background:rgba(0,0,0,.15);border-radius:12px;padding:8px 10px;">
+    <div style="font-size:9px;font-weight:900;letter-spacing:.15em;color:rgba(255,255,255,.6);margin-bottom:3px;">FULL DAY</div>
+    <div id="kmFull" style="font-size:16px;font-weight:900;color:#ffe566;">--</div>
+  </div>
+</div>
+
+<!-- COINS SECTION -->
+<div style="
+    background:linear-gradient(180deg,#c41f22 0%,#a31618 100%);
+    padding:12px 14px 14px;
+    border-radius:0 0 28px 28px;
+    flex-shrink:0;
+">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
     <div style="font-size:10px;font-weight:900;letter-spacing:.18em;color:rgba(255,255,255,.7);">COINS TO FREEDOM</div>
     <div id="kmPct" style="font-size:14px;font-weight:900;color:#ffe566;">0%</div>
   </div>
   <div id="kmCoins" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
-</div>`;
+</div>
+`;
+
     document.body.appendChild(widget);
-    refs={ widget, hours:widget.querySelector('#kmHours'), mins:widget.querySelector('#kmMins'), pct:widget.querySelector('#kmPct'), progress:widget.querySelector('#kmProgress'), vibe:widget.querySelector('#kmVibe'), coins:widget.querySelector('#kmCoins') };
-    const mc=document.getElementById('kmMarioSprite'), gc=document.getElementById('kmGoomba');
+
+    refs={
+        widget,
+        hours:     widget.querySelector('#kmHours'),
+        mins:      widget.querySelector('#kmMins'),
+        pct:       widget.querySelector('#kmPct'),
+        progress:  widget.querySelector('#kmProgress'),
+        vibe:      widget.querySelector('#kmVibe'),
+        coins:     widget.querySelector('#kmCoins'),
+        remaining: widget.querySelector('#kmRemaining'),
+        breakEl:   widget.querySelector('#kmBreak'),
+        half:      widget.querySelector('#kmHalf'),
+        full:      widget.querySelector('#kmFull'),
+    };
+
+    widget.querySelector('#kmClose').addEventListener('click', () => {
+        widget.remove();
+        window.__KEKA_HERO_TRACKER__ = false;
+    });
+
+    const mc=document.getElementById('kmMarioSprite');
+    const gc=document.getElementById('kmGoomba');
     const mCtx=mc.getContext('2d'), gCtx=gc.getContext('2d');
     let frame=0;
     (function loop(){ frame++; drawMarioFrame(mCtx,frame); drawGoombaFrame(gCtx); requestAnimationFrame(loop); })();
@@ -274,12 +363,29 @@ function createMarioUI() {
 }
 
 function updateMarioUI(data,total,breaks,left,pct,h,mStr) {
-    setIfChanged(refs.hours,String(h)); setIfChanged(refs.mins,mStr); setIfChanged(refs.pct,`${pct}%`);
+    setIfChanged(refs.hours,String(h));
+    setIfChanged(refs.mins,mStr);
+    setIfChanged(refs.pct,`${pct}%`);
+    setIfChanged(refs.remaining, fmtMinutes(left));
+    setIfChanged(refs.breakEl,   fmtMinutes(breaks));
+
     refs.progress.style.width=`${pct}%`;
-    if (pct>=100) refs.vibe.textContent='"nikal gayo bhai..."';
-    else if (pct>=75) refs.vibe.textContent='"castle najik che..."';
-    else if (pct>=50) refs.vibe.textContent='"aadho grind thai gayo..."';
-    else refs.vibe.textContent='"coins collect thai rahya che..."';
+
+    if (pct>=100)      refs.vibe.textContent='"nikal gayo bhai..."';
+    else if (pct>=75)  refs.vibe.textContent='"castle najik che..."';
+    else if (pct>=50)  refs.vibe.textContent='"aadho grind thai gayo..."';
+    else               refs.vibe.textContent='"coins collect thai rahya che..."';
+
+    if (data.firstStart) {
+        const sMin = parseTimeToMinutes(data.firstStart);
+        if (sMin !== null) {
+            const base = new Date();
+            base.setHours(Math.floor(sMin/60), sMin%60, 0, 0);
+            setIfChanged(refs.half, fmtTime(new Date(base.getTime() + (HALF_DAY_MINUTES + breaks)*60000)));
+            setIfChanged(refs.full, fmtTime(new Date(base.getTime() + (WORK_MINUTES     + breaks)*60000)));
+        }
+    }
+
     buildMarioCoins(pct);
     if (pct>=100 && !missionDone) { missionDone=true; showMarioAchievement(); }
 }
@@ -287,17 +393,12 @@ function updateMarioUI(data,total,breaks,left,pct,h,mStr) {
 if (THEME==='mario') createMarioUI();
 
 // ╔══════════════════════════════════════════════════════════════╗
-// ║   SPIDER-MAN  — original orange sunset sky, restored        ║
+// ║   SPIDER-MAN                                                ║
 // ╚══════════════════════════════════════════════════════════════╝
 
 const SPIDER_PNG = 'https://raw.githubusercontent.com/neelkanth23/keka/main/spidermon.png';
-
-// PNG is 424×296 (landscape).  We want a good size in the widget.
-// Original widget was 390×560. Top animated section ≈ 240px tall.
-// We render the image constrained to height 130px → width ≈ 186px.
-// Faces RIGHT naturally — always L→R, resets, no flip needed.
 const SP_H = 130;
-const SP_W = Math.round(SP_H * (424/296));  // ≈ 186
+const SP_W = Math.round(SP_H * (424/296));
 
 function injectSpiderStyles() {
     if (document.getElementById('kekaSpiderStyles')) return;
@@ -306,48 +407,17 @@ function injectSpiderStyles() {
     s.textContent = `
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;700&display=swap');
 #kekaSpider *{ box-sizing:border-box; margin:0; padding:0; }
-
-@keyframes sp-slidein{
-  from{ transform:translateX(120%) scale(.96); opacity:0; }
-  to{   transform:translateX(0) scale(1); opacity:1; }
-}
+@keyframes sp-slidein{ from{ transform:translateX(120%) scale(.96); opacity:0; } to{ transform:translateX(0) scale(1); opacity:1; } }
 @keyframes sp-spin    { to{ transform:rotate(360deg);  } }
 @keyframes sp-spin-rev{ to{ transform:rotate(-360deg); } }
-@keyframes sp-glow{
-  0%,100%{ box-shadow:0 0 25px rgba(255,80,80,.18),0 20px 60px rgba(0,0,0,.42); }
-  50%{     box-shadow:0 0 45px rgba(255,80,80,.32),0 25px 80px rgba(0,0,0,.55); }
-}
-@keyframes sp-float{
-  0%,100%{ transform:translateY(0);    }
-  50%{     transform:translateY(-8px); }
-}
-@keyframes sp-shimmer{
-  0%{   transform:translateX(-140%) rotate(18deg); }
-  100%{ transform:translateX(180%)  rotate(18deg); }
-}
-/* web-shooter canvas for mission area — defined via JS */
-@keyframes sp-achieve-in{
-  0%{   transform:translateY(60px) scale(.7); opacity:0; }
-  60%{  transform:translateY(-8px) scale(1.08); opacity:1; }
-  100%{ transform:translateY(0) scale(1); opacity:1; }
-}
-@keyframes sp-achieve-out{
-  from{ transform:translateY(0) scale(1); opacity:1; }
-  to{   transform:translateY(60px) scale(.7); opacity:0; }
-}
-@keyframes sp-complete-glow{
-  0%,100%{ box-shadow:0 0 30px rgba(34,197,94,.30),0 20px 70px rgba(0,0,0,.45); }
-  50%{     box-shadow:0 0 65px rgba(34,197,94,.55),0 20px 90px rgba(0,0,0,.55); }
-}
+@keyframes sp-glow{ 0%,100%{ box-shadow:0 0 25px rgba(255,80,80,.18),0 20px 60px rgba(0,0,0,.42); } 50%{ box-shadow:0 0 45px rgba(255,80,80,.32),0 25px 80px rgba(0,0,0,.55); } }
+@keyframes sp-float{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-8px); } }
+@keyframes sp-shimmer{ 0%{ transform:translateX(-140%) rotate(18deg); } 100%{ transform:translateX(180%) rotate(18deg); } }
+@keyframes sp-achieve-in{ 0%{ transform:translateY(60px) scale(.7); opacity:0; } 60%{ transform:translateY(-8px) scale(1.08); opacity:1; } 100%{ transform:translateY(0) scale(1); opacity:1; } }
+@keyframes sp-achieve-out{ from{ transform:translateY(0) scale(1); opacity:1; } to{ transform:translateY(60px) scale(.7); opacity:0; } }
+@keyframes sp-complete-glow{ 0%,100%{ box-shadow:0 0 30px rgba(34,197,94,.30),0 20px 70px rgba(0,0,0,.45); } 50%{ box-shadow:0 0 65px rgba(34,197,94,.55),0 20px 90px rgba(0,0,0,.55); } }
 .sp-complete{ animation:sp-complete-glow 1.8s ease-in-out infinite !important; }
-#spAchieve{
-  position:fixed; bottom:20px; right:20px; z-index:2147483647;
-  background:linear-gradient(135deg,#ff3d3d,#3da5ff); color:white;
-  font-family:'Orbitron',sans-serif; font-weight:700; font-size:13px;
-  padding:14px 20px; border-radius:20px; box-shadow:0 8px 30px rgba(0,0,0,.40);
-  display:flex; align-items:center; gap:10px; pointer-events:none;
-  animation:sp-achieve-in .5s cubic-bezier(.34,1.4,.64,1) forwards;
-}
+#spAchieve{ position:fixed; bottom:20px; right:20px; z-index:2147483647; background:linear-gradient(135deg,#ff3d3d,#3da5ff); color:white; font-family:'Orbitron',sans-serif; font-weight:700; font-size:13px; padding:14px 20px; border-radius:20px; box-shadow:0 8px 30px rgba(0,0,0,.40); display:flex; align-items:center; gap:10px; pointer-events:none; animation:sp-achieve-in .5s cubic-bezier(.34,1.4,.64,1) forwards; }
 #spAchieve.out{ animation:sp-achieve-out .4s ease-in forwards; }
 `;
     document.head.appendChild(s);
@@ -359,58 +429,20 @@ function createSpiderUI() {
 
     const widget = document.createElement('div');
     widget.id = 'kekaSpider';
-
-    // ── ORIGINAL orange sunset gradient background ──────────────
     widget.style.cssText = `
         position:fixed; top:20px; right:20px; z-index:2147483646;
         width:390px; height:560px; border-radius:34px; overflow:hidden;
-        background:linear-gradient(
-            180deg,
-            #ff9966 0%,
-            #ff7e5f 18%,
-            #f76b1c 34%,
-            #355c7d 68%,
-            #1d2b64 100%
-        );
+        background:linear-gradient(180deg,#ff9966 0%,#ff7e5f 18%,#f76b1c 34%,#355c7d 68%,#1d2b64 100%);
         box-shadow:0 0 25px rgba(255,80,80,.18),0 20px 60px rgba(0,0,0,.42);
-        animation:sp-slidein .7s cubic-bezier(.34,1.3,.64,1) forwards,
-                  sp-glow 4s ease-in-out infinite;
+        animation:sp-slidein .7s cubic-bezier(.34,1.3,.64,1) forwards, sp-glow 4s ease-in-out infinite;
     `;
 
     widget.innerHTML = `
-
-<!-- City skyline canvas — fills the WHOLE widget (dark at bottom, transparent at top) -->
-<canvas id="spCity"
-  style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"></canvas>
-
-<!-- Spider-Man image — JS positions and animates it, always faces right -->
+<canvas id="spCity" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"></canvas>
 <img id="spSwinger" src="${SPIDER_PNG}" alt=""
-  style="
-    position:absolute;
-    z-index:4;
-    pointer-events:none;
-    width:${SP_W}px;
-    height:${SP_H}px;
-    object-fit:contain;
-    filter:drop-shadow(0 8px 16px rgba(0,0,0,.60)) drop-shadow(0 0 18px rgba(255,60,60,.20));
-    top:-${SP_H}px;
-    left:-${SP_W}px;
-  "
-/>
-
-<!-- Dark overlay — covers ONLY the bottom half so top sky stays vibrant -->
-<div style="
-  position:absolute; left:0; right:0; bottom:0; height:320px;
-  background:linear-gradient(180deg,rgba(10,10,30,0) 0%,rgba(5,8,20,.72) 40%,rgba(3,5,15,.92) 100%);
-  pointer-events:none;
-"></div>
-
-<!-- TOP BAR -->
-<div style="
-  position:absolute; top:18px; left:18px; right:18px;
-  display:flex; justify-content:space-between; align-items:center;
-  z-index:5;
-">
+  style="position:absolute;z-index:4;pointer-events:none;width:${SP_W}px;height:${SP_H}px;object-fit:contain;filter:drop-shadow(0 8px 16px rgba(0,0,0,.60)) drop-shadow(0 0 18px rgba(255,60,60,.20));top:-${SP_H}px;left:-${SP_W}px;"/>
+<div style="position:absolute;left:0;right:0;bottom:0;height:320px;background:linear-gradient(180deg,rgba(10,10,30,0) 0%,rgba(5,8,20,.72) 40%,rgba(3,5,15,.92) 100%);pointer-events:none;"></div>
+<div style="position:absolute;top:18px;left:18px;right:18px;display:flex;justify-content:space-between;align-items:center;z-index:5;">
   <div>
     <div style="font-family:'Orbitron',sans-serif;font-size:24px;font-weight:900;letter-spacing:3px;color:white;">SPIDER HUD</div>
     <div style="font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.72);margin-top:2px;">EARTH-616 • NYC</div>
@@ -420,135 +452,37 @@ function createSpiderUI() {
     <button id="spClose" style="width:32px;height:32px;border:none;border-radius:50%;background:rgba(255,255,255,.12);color:white;font-size:16px;cursor:pointer;backdrop-filter:blur(8px);">×</button>
   </div>
 </div>
-
-<!-- CONTENT — positioned in lower portion, original glassmorphism card style -->
-<div id="spContent"
-  style="
-    position:absolute;
-    top:240px; left:14px; right:14px; bottom:14px;
-    display:flex; flex-direction:column; gap:0;
-  "
->
-
-  <!-- MAIN GLASS CARD (original single card layout) -->
-  <div style="
-    flex:1;
-    background:rgba(255,255,255,.13);
-    backdrop-filter:blur(22px);
-    -webkit-backdrop-filter:blur(22px);
-    border:1.5px solid rgba(255,255,255,.22);
-    border-radius:26px;
-    padding:18px 18px 14px;
-    display:flex;
-    flex-direction:column;
-    gap:14px;
-    position:relative;
-    overflow:hidden;
-  ">
-
-    <!-- shimmer sweep -->
-    <div style="
-      position:absolute; top:-40px; left:-80px; width:90px; height:220%;
-      background:rgba(255,255,255,.12);
-      animation:sp-shimmer 7s linear infinite;
-      pointer-events:none;
-    "></div>
-
-    <!-- REACTOR + STATS row -->
-    <div style="display:flex; align-items:center; gap:18px; position:relative; z-index:2;">
-
-      <!-- Circular progress reactor (original 170px centered, here left-anchored) -->
-      <div style="
-        position:relative; width:150px; height:150px; flex-shrink:0;
-        animation:sp-float 4s ease-in-out infinite;
-      ">
+<div id="spContent" style="position:absolute;top:240px;left:14px;right:14px;bottom:14px;display:flex;flex-direction:column;gap:0;">
+  <div style="flex:1;background:rgba(255,255,255,.13);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1.5px solid rgba(255,255,255,.22);border-radius:26px;padding:18px 18px 14px;display:flex;flex-direction:column;gap:14px;position:relative;overflow:hidden;">
+    <div style="position:absolute;top:-40px;left:-80px;width:90px;height:220%;background:rgba(255,255,255,.12);animation:sp-shimmer 7s linear infinite;pointer-events:none;"></div>
+    <div style="display:flex;align-items:center;gap:18px;position:relative;z-index:2;">
+      <div style="position:relative;width:150px;height:150px;flex-shrink:0;animation:sp-float 4s ease-in-out infinite;">
         <svg viewBox="0 0 170 170" style="position:absolute;inset:0;width:100%;height:100%;">
-          <circle cx="85" cy="85" r="62"
-            stroke="rgba(255,255,255,.12)" stroke-width="5" fill="none"/>
-          <circle id="spProgressCircle"
-            cx="85" cy="85" r="62"
-            stroke="url(#spGrad)"
-            stroke-width="10" fill="none"
-            stroke-linecap="round"
-            transform="rotate(-90 85 85)"
-            stroke-dasharray="390"
-            stroke-dashoffset="390"/>
-          <defs>
-            <linearGradient id="spGrad">
-              <stop offset="0%"   stop-color="#ff3d3d"/>
-              <stop offset="100%" stop-color="#3da5ff"/>
-            </linearGradient>
-          </defs>
-          <g style="animation:sp-spin 16s linear infinite;transform-origin:center;">
-            <circle cx="85" cy="85" r="74"
-              stroke="rgba(255,255,255,.18)" stroke-dasharray="10 12"
-              stroke-width="2" fill="none"/>
-          </g>
-          <g style="animation:sp-spin-rev 10s linear infinite;transform-origin:center;">
-            <circle cx="85" cy="85" r="50"
-              stroke="rgba(255,0,0,.38)" stroke-dasharray="8 10"
-              stroke-width="2" fill="none"/>
-          </g>
+          <circle cx="85" cy="85" r="62" stroke="rgba(255,255,255,.12)" stroke-width="5" fill="none"/>
+          <circle id="spProgressCircle" cx="85" cy="85" r="62" stroke="url(#spGrad)" stroke-width="10" fill="none" stroke-linecap="round" transform="rotate(-90 85 85)" stroke-dasharray="390" stroke-dashoffset="390"/>
+          <defs><linearGradient id="spGrad"><stop offset="0%" stop-color="#ff3d3d"/><stop offset="100%" stop-color="#3da5ff"/></linearGradient></defs>
+          <g style="animation:sp-spin 16s linear infinite;transform-origin:center;"><circle cx="85" cy="85" r="74" stroke="rgba(255,255,255,.18)" stroke-dasharray="10 12" stroke-width="2" fill="none"/></g>
+          <g style="animation:sp-spin-rev 10s linear infinite;transform-origin:center;"><circle cx="85" cy="85" r="50" stroke="rgba(255,0,0,.38)" stroke-dasharray="8 10" stroke-width="2" fill="none"/></g>
         </svg>
-        <div style="
-          position:absolute; inset:0;
-          display:flex; flex-direction:column;
-          align-items:center; justify-content:center;
-        ">
-          <div id="spHours" style="
-            font-size:46px; font-weight:900; line-height:1; color:white;
-            text-shadow:0 0 18px rgba(255,255,255,.65),0 0 30px rgba(255,0,0,.40);
-          ">0h</div>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <div id="spHours" style="font-size:46px;font-weight:900;line-height:1;color:white;text-shadow:0 0 18px rgba(255,255,255,.65),0 0 30px rgba(255,0,0,.40);">0h</div>
           <div id="spMins" style="font-size:18px;letter-spacing:3px;color:#9fd3ff;">00m</div>
         </div>
       </div>
-
-      <!-- Stats 2×2 grid -->
-      <div style="flex:1; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-        <div>
-          <div style="font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.65);">REMAINING</div>
-          <div id="spRemaining" style="font-size:22px;font-weight:700;color:white;margin-top:4px;">8h</div>
-        </div>
-        <div>
-          <div style="font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.65);">BREAK</div>
-          <div id="spBreak" style="font-size:22px;font-weight:700;color:white;margin-top:4px;">0m</div>
-        </div>
-        <div>
-          <div style="font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.65);">HALF DAY</div>
-          <div id="spHalf" style="font-size:18px;font-weight:700;color:white;margin-top:4px;">--</div>
-        </div>
-        <div>
-          <div style="font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.65);">MISSION END</div>
-          <div id="spFull" style="font-size:18px;font-weight:700;color:white;margin-top:4px;">--</div>
-        </div>
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><div style="font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.65);">REMAINING</div><div id="spRemaining" style="font-size:22px;font-weight:700;color:white;margin-top:4px;">8h</div></div>
+        <div><div style="font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.65);">BREAK</div><div id="spBreak" style="font-size:22px;font-weight:700;color:white;margin-top:4px;">0m</div></div>
+        <div><div style="font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.65);">HALF DAY</div><div id="spHalf" style="font-size:18px;font-weight:700;color:white;margin-top:4px;">--</div></div>
+        <div><div style="font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.65);">MISSION END</div><div id="spFull" style="font-size:18px;font-weight:700;color:white;margin-top:4px;">--</div></div>
       </div>
-
     </div>
-
-    <!-- MISSION CANVAS AREA — animated web + mission text -->
     <div style="position:relative;border-radius:16px;overflow:hidden;height:80px;flex-shrink:0;">
-      <!-- animated web shooter canvas behind the text -->
-      <canvas id="spWebCanvas"
-        style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
-      <!-- dark tint over canvas so text stays readable -->
-      <div style="
-        position:absolute;inset:0;
-        background:linear-gradient(90deg,rgba(255,0,0,.18),rgba(0,80,180,.22));
-        border-radius:16px;
-      "></div>
-      <!-- mission text -->
-      <div id="spMission" style="
-        position:relative; z-index:2;
-        height:100%; display:flex; align-items:center; padding:0 16px;
-        font-size:14px; line-height:1.45; color:white;
-        font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:.5px;
-      ">Entering Manhattan patrol route.</div>
+      <canvas id="spWebCanvas" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
+      <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,0,0,.18),rgba(0,80,180,.22));border-radius:16px;"></div>
+      <div id="spMission" style="position:relative;z-index:2;height:100%;display:flex;align-items:center;padding:0 16px;font-size:14px;line-height:1.45;color:white;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.5px;">Entering Manhattan patrol route.</div>
     </div>
-
   </div>
-
-</div>
-`;
+</div>`;
 
     document.body.appendChild(widget);
 
@@ -565,7 +499,6 @@ function createSpiderUI() {
         content:   widget.querySelector('#spContent')
     };
 
-    // buttons
     let minimized = false;
     widget.querySelector('#spMin').addEventListener('click', () => {
         minimized = !minimized;
@@ -583,57 +516,29 @@ function createSpiderUI() {
     startWebCanvas();
 }
 
-// ─────────────────────────────────────────────────────
-// SPIDER-MAN SWING
-// PNG faces RIGHT naturally.
-// Animation: always L→R, then instantly resets off-screen left.
-// No flip, no return trip — same as original CSS approach but JS.
-// A gentle arc and tilt give the swinging feel.
-// ─────────────────────────────────────────────────────
-
 function startSpiderSwing() {
     const img = document.getElementById('spSwinger');
     if (!img) return;
-
-    const DURATION = 9000;   // ms to cross the widget
-    const START_X  = -SP_W;  // off-screen left
-    const END_X    = 390;    // off-screen right
+    const DURATION = 9000;
+    const START_X  = -SP_W;
+    const END_X    = 390;
     let t0 = null;
-
     function eio(t) { return t < .5 ? 2*t*t : -1 + (4 - 2*t)*t; }
-
     function tick(now) {
         if (!t0) t0 = now;
         const elapsed = (now - t0) % DURATION;
-        const frac    = elapsed / DURATION;   // 0 → 1
+        const frac    = elapsed / DURATION;
         const ease    = eio(frac);
-
-        // Horizontal — always left to right
-        const x = START_X + (END_X - START_X) * ease;
-
-        // Vertical arc: dips in the middle (swing feel)
-        // Top range: 10px at edges, 60px at peak of arc
-        const y = 10 + Math.sin(frac * Math.PI) * 55;
-
-        // Tilt: leans forward (clockwise) during mid-swing
-        const tilt = Math.sin(frac * Math.PI) * 22;
-
+        const x       = START_X + (END_X - START_X) * ease;
+        const y       = 10 + Math.sin(frac * Math.PI) * 55;
+        const tilt    = Math.sin(frac * Math.PI) * 22;
         img.style.left      = `${x}px`;
         img.style.top       = `${y}px`;
         img.style.transform = `rotate(${tilt}deg)`;
-        // scaleX: always 1 (facing right), never flipped
-
         requestAnimationFrame(tick);
     }
-
     requestAnimationFrame(tick);
 }
-
-// ─────────────────────────────────────────────────────
-// CITY SKYLINE CANVAS
-// Draws a NYC morning/dusk skyline at the bottom.
-// The top of the canvas is transparent (orange sky shows through).
-// ─────────────────────────────────────────────────────
 
 function startSpiderCity() {
     const canvas = document.getElementById('spCity');
@@ -642,237 +547,120 @@ function startSpiderCity() {
     canvas.width  = 390;
     canvas.height = 560;
     const W = 390, H = 560;
-
-    // Stable building layout — generated once
     const buildings = [];
     for (let i = 0; i < 24; i++) {
         const bw = 14 + Math.abs(Math.sin(i * 2.3)) * 22;
         const bh = 80 + Math.abs(Math.sin(i * 1.7)) * 220;
-        buildings.push({
-            x: i * 17 - 5,
-            w: bw,
-            h: bh,
-            y: H - bh,
-            layer: i % 3   // 0=back, 1=mid, 2=front
-        });
+        buildings.push({ x: i * 17 - 5, w: bw, h: bh, y: H - bh, layer: i % 3 });
     }
-
     let frame = 0;
-
     function render() {
         ctx.clearRect(0, 0, W, H);
-
-        // ── Silhouette layers (back → front) ──────────────
         [0, 1, 2].forEach(layer => {
             buildings.filter(b => b.layer === layer).forEach(b => {
-                // Each layer slightly darker / taller in front
                 const alpha = 0.45 + layer * 0.22;
                 const grd   = ctx.createLinearGradient(0, b.y, 0, H);
-                grd.addColorStop(0,   `rgba(15,12,35,${alpha})`);
-                grd.addColorStop(1,   `rgba(5,4,18,${alpha + 0.2})`);
+                grd.addColorStop(0, `rgba(15,12,35,${alpha})`);
+                grd.addColorStop(1, `rgba(5,4,18,${alpha + 0.2})`);
                 ctx.fillStyle = grd;
                 ctx.fillRect(b.x, b.y, b.w, b.h);
-
-                // Windows — flicker gently
                 for (let wy = b.y + 6; wy < H - 5; wy += 11) {
                     for (let wx = b.x + 3; wx < b.x + b.w - 4; wx += 7) {
-                        // Deterministic "on/off" per window position
                         const seed = Math.sin(wx * 13 + wy * 7 + layer) + Math.sin(frame * 0.003 + wx * 0.1);
                         if (seed > 0.5) {
                             const warm = Math.sin(wx + wy * 2) > 0;
                             const op   = 0.45 + 0.35 * Math.abs(Math.sin(frame * 0.005 + wx * 0.3));
-                            ctx.fillStyle = warm
-                                ? `rgba(255,200,90,${op.toFixed(2)})`
-                                : `rgba(140,195,255,${op.toFixed(2)})`;
+                            ctx.fillStyle = warm ? `rgba(255,200,90,${op.toFixed(2)})` : `rgba(140,195,255,${op.toFixed(2)})`;
                             ctx.fillRect(wx, wy, 3, 5);
                         }
                     }
                 }
             });
         });
-
-        // ── Street-level traffic streaks ──────────────────
         for (let i = 0; i < 12; i++) {
             const speed = 0.6 + (i % 4) * 0.35;
             const tx    = ((i * 38 + frame * speed) % (W + 50)) - 50;
             const ty    = H - 22 + Math.sin(i) * 5;
-            ctx.strokeStyle = i % 2
-                ? `rgba(255,80,80,${0.30 + (i%3)*.08})`
-                : `rgba(255,240,160,${0.22 + (i%3)*.06})`;
+            ctx.strokeStyle = i % 2 ? `rgba(255,80,80,${0.30 + (i%3)*.08})` : `rgba(255,240,160,${0.22 + (i%3)*.06})`;
             ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(tx, ty);
-            ctx.lineTo(tx + 28, ty);
-            ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx + 28, ty); ctx.stroke();
         }
-
         frame++;
         requestAnimationFrame(render);
     }
-
     render();
 }
-
-// ─────────────────────────────────────────────────────
-// WEB-SHOOTER CANVAS  (replaces the plain mission text box)
-// Draws animated spider-web lines radiating from a corner,
-// with sparkling nodes — gives a techy web-sensor feel.
-// Mission text overlays on top.
-// ─────────────────────────────────────────────────────
 
 function startWebCanvas() {
     const canvas = document.getElementById('spWebCanvas');
     if (!canvas) return;
-
-    // Size canvas to match its CSS container
-    const setSize = () => {
-        const r = canvas.getBoundingClientRect();
-        canvas.width  = r.width  || 330;
-        canvas.height = r.height || 80;
-    };
+    const setSize = () => { const r = canvas.getBoundingClientRect(); canvas.width = r.width || 330; canvas.height = r.height || 80; };
     setSize();
-
     const ctx = canvas.getContext('2d');
-    const W   = canvas.width;
-    const H   = canvas.height;
-
-    // Origin: bottom-left corner
-    const OX = 0;
-    const OY = H;
-
-    // Radial web lines from origin
+    const W = canvas.width, H = canvas.height;
+    const OX = 0, OY = H;
     const LINES = 8;
-    const angles = Array.from({length: LINES}, (_, i) =>
-        // Spread from -10° to -80° (upper-right quadrant from bottom-left)
-        (-10 - i * 9) * (Math.PI / 180)
-    );
-
-    // Concentric arcs at these radii
+    const angles = Array.from({length: LINES}, (_, i) => (-10 - i * 9) * (Math.PI / 180));
     const radii = [30, 60, 95, 135, 180, 230];
-
     let frame = 0;
-
     function render() {
         ctx.clearRect(0, 0, W, H);
-
-        // Web lines
         angles.forEach(angle => {
-            const len = 280;
-            const ex  = OX + Math.cos(angle) * len;
-            const ey  = OY + Math.sin(angle) * len;
-
+            const len = 280, ex = OX + Math.cos(angle) * len, ey = OY + Math.sin(angle) * len;
             const pulse = 0.10 + 0.08 * Math.sin(frame * 0.04 + angle * 3);
-
-            ctx.strokeStyle = `rgba(255,255,255,${pulse.toFixed(2)})`;
-            ctx.lineWidth   = 0.8;
-            ctx.beginPath();
-            ctx.moveTo(OX, OY);
-            ctx.lineTo(ex, ey);
-            ctx.stroke();
+            ctx.strokeStyle = `rgba(255,255,255,${pulse.toFixed(2)})`; ctx.lineWidth = 0.8;
+            ctx.beginPath(); ctx.moveTo(OX, OY); ctx.lineTo(ex, ey); ctx.stroke();
         });
-
-        // Concentric arcs connecting the lines
         radii.forEach((r, ri) => {
-            const aStart = angles[angles.length - 1];
-            const aEnd   = angles[0];
-            const pulse  = 0.08 + 0.06 * Math.sin(frame * 0.025 + ri * 0.8);
-
-            ctx.strokeStyle = `rgba(255,255,255,${pulse.toFixed(2)})`;
-            ctx.lineWidth   = 0.7;
-            ctx.beginPath();
-            ctx.arc(OX, OY, r, aStart, aEnd);
-            ctx.stroke();
+            const pulse = 0.08 + 0.06 * Math.sin(frame * 0.025 + ri * 0.8);
+            ctx.strokeStyle = `rgba(255,255,255,${pulse.toFixed(2)})`; ctx.lineWidth = 0.7;
+            ctx.beginPath(); ctx.arc(OX, OY, r, angles[angles.length-1], angles[0]); ctx.stroke();
         });
-
-        // Glowing nodes at intersections
         angles.forEach(angle => {
             radii.forEach((r, ri) => {
-                const nx  = OX + Math.cos(angle) * r;
-                const ny  = OY + Math.sin(angle) * r;
+                const nx = OX + Math.cos(angle) * r, ny = OY + Math.sin(angle) * r;
                 const flicker = Math.sin(frame * 0.06 + angle * 5 + ri * 2);
-                if (flicker > 0.3) {
-                    const op = 0.4 + 0.5 * flicker;
-                    ctx.fillStyle = `rgba(61,165,255,${op.toFixed(2)})`;
-                    ctx.beginPath();
-                    ctx.arc(nx, ny, 1.5, 0, Math.PI * 2);
-                    ctx.fill();
-                }
+                if (flicker > 0.3) { ctx.fillStyle = `rgba(61,165,255,${(0.4 + 0.5*flicker).toFixed(2)})`; ctx.beginPath(); ctx.arc(nx, ny, 1.5, 0, Math.PI*2); ctx.fill(); }
             });
         });
-
-        // Sweeping "radar" line from origin
-        const sweepAngle = angles[0] + (angles[angles.length-1] - angles[0]) *
-            (((frame * 0.012) % 1 + 1) % 1);
-        const sx = OX + Math.cos(sweepAngle) * 230;
-        const sy = OY + Math.sin(sweepAngle) * 230;
+        const sweepAngle = angles[0] + (angles[angles.length-1] - angles[0]) * (((frame * 0.012) % 1 + 1) % 1);
+        const sx = OX + Math.cos(sweepAngle) * 230, sy = OY + Math.sin(sweepAngle) * 230;
         const swGrd = ctx.createLinearGradient(OX, OY, sx, sy);
-        swGrd.addColorStop(0,   'rgba(255,60,60,.30)');
-        swGrd.addColorStop(0.6, 'rgba(255,60,60,.12)');
-        swGrd.addColorStop(1,   'rgba(255,60,60,0)');
-        ctx.strokeStyle = swGrd;
-        ctx.lineWidth   = 2;
-        ctx.beginPath();
-        ctx.moveTo(OX, OY);
-        ctx.lineTo(sx, sy);
-        ctx.stroke();
-
-        frame++;
-        requestAnimationFrame(render);
+        swGrd.addColorStop(0, 'rgba(255,60,60,.30)'); swGrd.addColorStop(0.6, 'rgba(255,60,60,.12)'); swGrd.addColorStop(1, 'rgba(255,60,60,0)');
+        ctx.strokeStyle = swGrd; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(OX, OY); ctx.lineTo(sx, sy); ctx.stroke();
+        frame++; requestAnimationFrame(render);
     }
-
     render();
 }
 
 function showSpiderAchievement() {
     if (document.getElementById('spAchieve')) return;
     const el = document.createElement('div'); el.id = 'spAchieve';
-    el.innerHTML = `<span style="font-size:24px;">🕷️</span><div>
-      <div style="font-size:9px;opacity:.65;letter-spacing:2px;margin-bottom:2px;">MISSION COMPLETE</div>
-      MANHATTAN SECURED!</div>`;
+    el.innerHTML = `<span style="font-size:24px;">🕷️</span><div><div style="font-size:9px;opacity:.65;letter-spacing:2px;margin-bottom:2px;">MISSION COMPLETE</div>MANHATTAN SECURED!</div>`;
     document.body.appendChild(el);
     setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 500); }, 5000);
 }
-
-// ─────────────────────────────────────────────────────
-// UPDATE SPIDER UI
-// ─────────────────────────────────────────────────────
 
 function updateSpiderUI(data, total, breaks, left, pct, h, mStr) {
     setIfChanged(refs.hours, `${h}h`);
     setIfChanged(refs.mins,  `${mStr}m`);
     setIfChanged(refs.remaining, fmtMinutes(left));
     setIfChanged(refs.breakEl,   fmtMinutes(breaks));
-
-    // Progress arc (r=62, circumference=390 as per original)
     refs.progress.style.strokeDashoffset = 390 - (pct / 100) * 390;
-
-    // Mission text
-    const msgs = [
-        'Entering Manhattan patrol route.',
-        'Spider-Sense activated across NYC.',
-        'Swinging through Midtown at full speed.',
-        'Final villain chase sequence active.',
-        '🕷️  MISSION COMPLETE. Manhattan secured.'
-    ];
+    const msgs = ['Entering Manhattan patrol route.','Spider-Sense activated across NYC.','Swinging through Midtown at full speed.','Final villain chase sequence active.','🕷️  MISSION COMPLETE. Manhattan secured.'];
     const mi = pct >= 100 ? 4 : pct >= 75 ? 3 : pct >= 50 ? 2 : pct >= 25 ? 1 : 0;
     setIfChanged(refs.mission, msgs[mi]);
-
-    // Half-day / full-day
     if (data.firstStart) {
         const sMin = parseTimeToMinutes(data.firstStart);
         if (sMin !== null) {
             const base = new Date();
             base.setHours(Math.floor(sMin/60), sMin%60, 0, 0);
             setIfChanged(refs.half, fmtTime(new Date(base.getTime() + (HALF_DAY_MINUTES + breaks)*60000)));
-            setIfChanged(refs.full, fmtTime(new Date(base.getTime() + (WORK_MINUTES + breaks)*60000)));
+            setIfChanged(refs.full, fmtTime(new Date(base.getTime() + (WORK_MINUTES     + breaks)*60000)));
         }
     }
-
-    if (pct >= 100 && !missionDone) {
-        missionDone = true;
-        refs.widget.classList.add('sp-complete');
-        showSpiderAchievement();
-    }
+    if (pct >= 100 && !missionDone) { missionDone = true; refs.widget.classList.add('sp-complete'); showSpiderAchievement(); }
 }
 
 // ─────────────────────────────────────────────────────
@@ -888,13 +676,12 @@ function updateUI() {
     const pct    = Math.min(100, Math.round((total / WORK_MINUTES) * 100));
     const h      = Math.floor(total / 60);
     const mStr   = String(total % 60).padStart(2, '0');
-
     if (THEME === 'mario') updateMarioUI(data, total, breaks, left, pct, h, mStr);
     else                   updateSpiderUI(data, total, breaks, left, pct, h, mStr);
 }
 
 // ─────────────────────────────────────────────────────
-// MUTATION OBSERVER
+// MUTATION OBSERVER + BOOT
 // ─────────────────────────────────────────────────────
 
 function startObservers() {
@@ -904,10 +691,6 @@ function startObservers() {
     }).observe(document.body, { childList:true, subtree:true });
 }
 
-// ─────────────────────────────────────────────────────
-// BOOT
-// ─────────────────────────────────────────────────────
-
 if (THEME === 'spiderman') createSpiderUI();
 
 updateUI();
@@ -915,7 +698,7 @@ setInterval(updateUI, SCAN_INTERVAL_MS);
 startObservers();
 
 console.log(
-    `%c🕷️ KEKA HERO TRACKER v4 — ${THEME.toUpperCase()}`,
+    `%c🕷️ KEKA HERO TRACKER v5 — ${THEME.toUpperCase()}`,
     'color:#ff3d3d;font-size:14px;font-weight:bold;background:#0a0a0a;padding:4px 8px;border-radius:4px;'
 );
 
