@@ -1,7 +1,7 @@
 // ╔══════════════════════════════════════════════════════════════╗
-// ║   KEKA HERO TRACKER — v5                                    ║
-// ║   FIX: Mario widget given fixed height + layout restored    ║
-// ║   Spider-Man: unchanged from v4                             ║
+// ║   KEKA HERO TRACKER — v6                                    ║
+// ║   ADD: Superman theme (Man of Steel UI)                     ║
+// ║   Mario & Spider-Man: unchanged from v5                     ║
 // ╚══════════════════════════════════════════════════════════════╝
 
 (function () {
@@ -12,10 +12,11 @@ if (window.__KEKA_HERO_TRACKER__) { console.log('[KHT] Already running.'); retur
 window.__KEKA_HERO_TRACKER__ = true;
 
 // ─────────────────────────────────────────────────────
-// THEME
+// THEME — cycles: even day = spiderman, day%3==0 = superman, else = mario
 // ─────────────────────────────────────────────────────
 
-const THEME = (new Date().getDate() % 2 === 0) ? 'spiderman' : 'mario';
+const _d = new Date().getDate();
+const THEME = (_d % 3 === 0) ? 'superman' : (_d % 2 === 0) ? 'spiderman' : 'mario';
 
 // ─────────────────────────────────────────────────────
 // CONSTANTS
@@ -230,7 +231,6 @@ function createMarioUI() {
     if (document.getElementById('kekaMario')) return;
     const widget=document.createElement('div'); widget.id='kekaMario';
 
-    // ── FIX: explicit height + no overflow clipping on outer wrapper ──
     widget.style.cssText=`
         position:fixed;
         top:20px;
@@ -250,7 +250,6 @@ function createMarioUI() {
     `;
 
     widget.innerHTML=`
-<!-- SKY / ANIMATION section -->
 <div style="
     position:relative;
     height:200px;
@@ -266,7 +265,6 @@ function createMarioUI() {
   <canvas id="kmMarioSprite" width="40" height="52" style="position:absolute;bottom:52px;left:-50px;image-rendering:pixelated;animation:km-run 8s linear infinite;"></canvas>
   <canvas id="kmGoomba" width="36" height="36" style="position:absolute;bottom:52px;left:420px;image-rendering:pixelated;animation:km-goomba 6s linear infinite;"></canvas>
 
-  <!-- Stats card floats over the sky -->
   <div style="position:absolute;top:10px;left:10px;right:10px;background:rgba(255,255,255,.28);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:3px solid rgba(255,255,255,.92);border-radius:20px;padding:12px 14px;">
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <div>
@@ -291,7 +289,6 @@ function createMarioUI() {
   </div>
 </div>
 
-<!-- STATS ROW -->
 <div style="
     background:linear-gradient(180deg,#e8282b 0%,#c41f22 100%);
     padding:10px 14px;
@@ -318,7 +315,6 @@ function createMarioUI() {
   </div>
 </div>
 
-<!-- COINS SECTION -->
 <div style="
     background:linear-gradient(180deg,#c41f22 0%,#a31618 100%);
     padding:12px 14px 14px;
@@ -663,6 +659,567 @@ function updateSpiderUI(data, total, breaks, left, pct, h, mStr) {
     if (pct >= 100 && !missionDone) { missionDone = true; refs.widget.classList.add('sp-complete'); showSpiderAchievement(); }
 }
 
+// ╔══════════════════════════════════════════════════════════════╗
+// ║   SUPERMAN  — Man of Steel                                  ║
+// ║   Palette: deep navy #0D1B2A, crimson #C41230, gold #E8A000 ║
+// ║   Font: Bebas Neue (headline) + Barlow Condensed (body)     ║
+// ║   Visual: Metropolis skyline + Superman soaring PNG         ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+// Superman transparent PNG (classic suit, flying pose, public domain / CC0 sprite sheet render)
+const SUPERMAN_PNG = 'https://raw.githubusercontent.com/neelkanth23/keka/main/superman_fly.jpeg';
+// Image is 860x299 — wide flying pose. Display at 280px wide → 97px tall
+const SM_W = 280;
+const SM_H = Math.round(SM_W * (299 / 860)); // ≈ 97px
+
+function injectSupermanStyles() {
+    if (document.getElementById('kekaSupermanStyles')) return;
+    const s = document.createElement('style');
+    s.id = 'kekaSupermanStyles';
+    s.textContent = `
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&display=swap');
+#kekaSuperman *{ box-sizing:border-box; margin:0; padding:0; }
+
+/* ── Entrance ── */
+@keyframes sm-slidein{
+  from{ transform:translateX(130%) scale(.92) rotate(3deg); opacity:0; }
+  to{   transform:translateX(0)   scale(1)   rotate(0deg); opacity:1; }
+}
+
+/* ── Outer cape-red pulse ── */
+@keyframes sm-cape-glow{
+  0%,100%{ box-shadow:0 0 0 4px #C41230, 0 0 0 8px #0D1B2A, 0 28px 80px rgba(0,0,0,.55); }
+  50%{     box-shadow:0 0 0 4px #E8A000, 0 0 0 8px #0D1B2A, 0 28px 80px rgba(200,18,48,.35); }
+}
+
+/* ── Superman fly: JS-driven via rAF ── */
+
+/* ── Cape wave on hero image ── */
+@keyframes sm-cape-wave{
+  0%,100%{ transform:translateY(0px) rotate(-6deg); }
+  50%{     transform:translateY(-6px) rotate(-4deg); }
+}
+
+/* ── Progress bar energy pulse ── */
+@keyframes sm-energy{
+  0%  { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100%{ background-position: 0% 50%; }
+}
+
+/* ── Stat card shimmer ── */
+@keyframes sm-shimmer{
+  0%  { transform:translateX(-200%) skewX(-20deg); }
+  100%{ transform:translateX(300%)  skewX(-20deg); }
+}
+
+/* ── S-shield spin on complete ── */
+@keyframes sm-shield-spin{
+  from{ transform:rotateY(0deg); }
+  to{   transform:rotateY(360deg); }
+}
+
+/* ── Achievement toast ── */
+@keyframes sm-toast-in{
+  0%  { transform:translateY(80px) scale(.7) rotate(4deg); opacity:0; }
+  65% { transform:translateY(-6px) scale(1.05) rotate(0deg); opacity:1; }
+  100%{ transform:translateY(0)   scale(1)   rotate(0deg); opacity:1; }
+}
+@keyframes sm-toast-out{
+  from{ transform:translateY(0) scale(1); opacity:1; }
+  to{   transform:translateY(80px) scale(.7); opacity:0; }
+}
+
+/* ── Complete border glow ── */
+@keyframes sm-hero-complete{
+  0%,100%{ box-shadow:0 0 0 4px #E8A000, 0 0 0 8px #0D1B2A, 0 28px 80px rgba(232,160,0,.45); }
+  50%{     box-shadow:0 0 0 4px #fff,    0 0 0 8px #E8A000, 0 28px 80px rgba(232,160,0,.70); }
+}
+
+#smAchieve{
+  position:fixed; bottom:20px; right:20px; z-index:2147483647;
+  background:linear-gradient(135deg,#C41230 0%,#0D1B2A 100%);
+  color:#E8A000; font-family:'Bebas Neue',sans-serif; font-size:18px;
+  letter-spacing:2px; padding:14px 22px; border-radius:16px;
+  border:2px solid #E8A000;
+  box-shadow:0 8px 32px rgba(0,0,0,.50);
+  display:flex; align-items:center; gap:12px; pointer-events:none;
+  animation:sm-toast-in .55s cubic-bezier(.34,1.5,.64,1) forwards;
+}
+#smAchieve.out{ animation:sm-toast-out .4s ease-in forwards; }
+.sm-complete-widget{ animation:sm-hero-complete 2s ease-in-out infinite !important; }
+`;
+    document.head.appendChild(s);
+}
+
+// ── Draw the S-Shield on a canvas (no external image needed for the badge) ──
+function drawSShield(canvas) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    // Pentagon shield shape
+    const cx = W/2, top = 2, bot = H-2, side = W*0.46, mid = H*0.58;
+    ctx.beginPath();
+    ctx.moveTo(cx, top);
+    ctx.lineTo(cx + side, top + H*0.18);
+    ctx.lineTo(cx + side*0.72, mid);
+    ctx.lineTo(cx, bot);
+    ctx.lineTo(cx - side*0.72, mid);
+    ctx.lineTo(cx - side, top + H*0.18);
+    ctx.closePath();
+
+    // Fill: navy
+    ctx.fillStyle = '#0D1B2A';
+    ctx.fill();
+    // Gold border
+    ctx.strokeStyle = '#E8A000';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Inner red diamond
+    const ipad = W * 0.12;
+    ctx.beginPath();
+    ctx.moveTo(cx, top + ipad*0.6);
+    ctx.lineTo(cx + side - ipad, top + H*0.18 + ipad*0.4);
+    ctx.lineTo(cx + side*0.72 - ipad*0.5, mid - ipad*0.2);
+    ctx.lineTo(cx, bot - ipad);
+    ctx.lineTo(cx - side*0.72 + ipad*0.5, mid - ipad*0.2);
+    ctx.lineTo(cx - side + ipad, top + H*0.18 + ipad*0.4);
+    ctx.closePath();
+    ctx.fillStyle = '#C41230';
+    ctx.fill();
+
+    // Gold "S" glyph — drawn as two overlapping trapezoids (stylised)
+    ctx.fillStyle = '#E8A000';
+    ctx.font = `bold ${Math.round(H*0.42)}px 'Bebas Neue', Impact, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('S', cx, H*0.52);
+}
+
+// ── Metropolis skyline canvas ──
+function startMetropolisSkyline(canvasId, W, H) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    canvas.width = W; canvas.height = H;
+
+    // Generate buildings
+    const buildings = [];
+    const segs = 26;
+    for (let i = 0; i < segs; i++) {
+        const bw  = 12 + Math.abs(Math.sin(i * 1.9 + 0.4)) * 24;
+        const bh  = 60 + Math.abs(Math.sin(i * 2.7 + 1.1)) * (H * 0.55);
+        const spire = Math.random() > 0.65;
+        buildings.push({ x: i * (W/segs) - 4, w: bw, h: bh, spire, layer: i % 3 });
+    }
+
+    // Stars
+    const stars = Array.from({length:60}, () => ({
+        x: Math.random()*W, y: Math.random()*(H*0.55),
+        r: 0.5 + Math.random()*1.2,
+        phase: Math.random()*Math.PI*2
+    }));
+
+    let frame = 0;
+    function render() {
+        ctx.clearRect(0, 0, W, H);
+
+        // Deep night sky gradient
+        const sky = ctx.createLinearGradient(0, 0, 0, H * 0.6);
+        sky.addColorStop(0,   '#020810');
+        sky.addColorStop(0.5, '#08122A');
+        sky.addColorStop(1,   '#0D1B2A');
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, W, H * 0.75);
+
+        // Twinkling stars
+        stars.forEach(st => {
+            const alpha = 0.4 + 0.5 * Math.abs(Math.sin(frame * 0.018 + st.phase));
+            ctx.fillStyle = `rgba(255,245,200,${alpha.toFixed(2)})`;
+            ctx.beginPath();
+            ctx.arc(st.x, st.y, st.r, 0, Math.PI*2);
+            ctx.fill();
+        });
+
+        // Moon / planet glow
+        ctx.fillStyle = 'rgba(230,200,120,0.12)';
+        ctx.beginPath();
+        ctx.arc(W*0.82, H*0.14, 28, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,230,140,0.55)';
+        ctx.beginPath();
+        ctx.arc(W*0.82, H*0.14, 16, 0, Math.PI*2);
+        ctx.fill();
+
+        // Buildings — back to front
+        [0, 1, 2].forEach(layer => {
+            buildings.filter(b => b.layer === layer).forEach(b => {
+                const alpha = 0.55 + layer * 0.22;
+                const g = ctx.createLinearGradient(0, H - b.h, 0, H);
+                g.addColorStop(0, `rgba(14,28,55,${alpha})`);
+                g.addColorStop(1, `rgba(5,10,22,${(alpha+0.2).toFixed(2)})`);
+                ctx.fillStyle = g;
+                ctx.fillRect(b.x, H - b.h, b.w, b.h);
+
+                // Spire
+                if (b.spire) {
+                    ctx.fillStyle = `rgba(200,160,50,${0.5 + layer*0.15})`;
+                    ctx.beginPath();
+                    ctx.moveTo(b.x + b.w/2, H - b.h - 22);
+                    ctx.lineTo(b.x + b.w/2 + 3, H - b.h);
+                    ctx.lineTo(b.x + b.w/2 - 3, H - b.h);
+                    ctx.closePath();
+                    ctx.fill();
+                    // Blinking red tip
+                    if (Math.sin(frame * 0.04 + b.x) > 0.6) {
+                        ctx.fillStyle = `rgba(220,50,50,0.9)`;
+                        ctx.beginPath();
+                        ctx.arc(b.x + b.w/2, H - b.h - 22, 2, 0, Math.PI*2);
+                        ctx.fill();
+                    }
+                }
+
+                // Windows
+                for (let wy = H - b.h + 6; wy < H - 4; wy += 10) {
+                    for (let wx = b.x + 3; wx < b.x + b.w - 5; wx += 6) {
+                        const seed = Math.sin(wx * 11 + wy * 5 + layer);
+                        if (seed > 0.1) {
+                            const warm = Math.sin(wx*1.3 + wy*0.7) > 0;
+                            const fl   = 0.30 + 0.45 * Math.abs(Math.sin(frame * 0.006 + wx * 0.25 + wy * 0.1));
+                            ctx.fillStyle = warm
+                                ? `rgba(255,215,90,${fl.toFixed(2)})`
+                                : `rgba(160,210,255,${(fl*0.8).toFixed(2)})`;
+                            ctx.fillRect(wx, wy, 3, 5);
+                        }
+                    }
+                }
+            });
+        });
+
+        // Ground / street
+        const street = ctx.createLinearGradient(0, H*0.88, 0, H);
+        street.addColorStop(0, 'rgba(10,20,40,0.95)');
+        street.addColorStop(1, 'rgba(4,8,18,1)');
+        ctx.fillStyle = street;
+        ctx.fillRect(0, H*0.88, W, H*0.12);
+
+        // Moving cars
+        for (let i = 0; i < 8; i++) {
+            const speed = 0.8 + (i % 4) * 0.4;
+            const tx = ((i * 52 + frame * speed) % (W + 60)) - 60;
+            const ty = H - 12 + Math.sin(i * 1.3) * 4;
+            ctx.fillStyle = i%3 === 0 ? `rgba(255,200,60,0.5)` : `rgba(255,80,80,0.35)`;
+            ctx.fillRect(tx, ty, 18, 4);
+        }
+
+        frame++;
+        requestAnimationFrame(render);
+    }
+    render();
+}
+
+// ── Superman flying animation ──
+function startSupermanFly(imgId) {
+    const img = document.getElementById(imgId);
+    if (!img) return;
+    img.onerror = () => { img.style.display = 'none'; };
+    // Image is 280px wide × 97px tall (860×299 source)
+    // Widget is 385px wide. Sweep: start fully off-left, fly to fully off-right, flip & return
+    const WIDGET_W  = 385;
+    const DURATION  = 11000; // ms per full pass
+    const START_X   = -SM_W;          // fully off-screen left
+    const END_X     = WIDGET_W + 20;  // fully off-screen right
+    let t0 = null;
+
+    function easeInOut(t) { return t < .5 ? 2*t*t : -1 + (4 - 2*t)*t; }
+
+    function tick(now) {
+        if (!t0) t0 = now;
+        const elapsed = (now - t0) % DURATION;
+        const frac    = elapsed / DURATION;
+
+        // First half: fly left → right (scaleX normal)
+        // Second half: fly right → left (scaleX flipped)
+        let x, scaleX;
+        if (frac < 0.5) {
+            const f  = frac / 0.5;
+            x        = START_X + easeInOut(f) * (END_X - START_X);
+            scaleX   = 1;
+        } else {
+            const f  = (frac - 0.5) / 0.5;
+            x        = END_X - easeInOut(f) * (END_X - START_X);
+            scaleX   = -1;
+        }
+
+        // Gentle arc — peak mid-pass, slightly higher
+        const arc = Math.sin(frac * Math.PI * 2) * 20;
+        const y   = 72 - Math.abs(arc);
+
+        // Slight tilt into direction of travel
+        const tilt = scaleX === 1 ? -8 : -8;
+
+        img.style.left      = `${x}px`;
+        img.style.top       = `${y}px`;
+        img.style.transform = `rotate(${tilt}deg) scaleX(${scaleX})`;
+        requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+}
+
+// ── Build the power-crystal progress bar ──
+function updateKryptoniteBar(pct) {
+    const TOTAL = 20;
+    const lit   = Math.round((pct / 100) * TOTAL);
+    if (lit === previousCoinState) return;
+    previousCoinState = lit;
+    const segs = refs.widget ? refs.widget.querySelectorAll('.sm-seg') : [];
+    segs.forEach((seg, i) => {
+        if (i < lit) {
+            // Gradient: early segs red→gold, later segs shift toward green kryptonite
+            const greenFrac = Math.max(0, (i - TOTAL * 0.6) / (TOTAL * 0.4));
+            if (greenFrac > 0) {
+                seg.style.background = `linear-gradient(90deg,rgba(232,160,0,${1-greenFrac}),rgba(57,255,90,${greenFrac * 0.85}))`;
+                seg.style.boxShadow  = `0 0 ${4 + greenFrac*8}px rgba(57,255,90,${greenFrac*0.5})`;
+                seg.style.borderColor = `rgba(57,255,90,${0.3 + greenFrac*0.4})`;
+            } else {
+                seg.style.background  = 'linear-gradient(90deg,#C41230,#E8A000)';
+                seg.style.boxShadow   = '0 0 4px rgba(232,160,0,.30)';
+                seg.style.borderColor = 'rgba(232,160,0,.35)';
+            }
+        } else {
+            seg.style.background  = 'rgba(255,255,255,.06)';
+            seg.style.boxShadow   = 'none';
+            seg.style.borderColor = 'rgba(255,255,255,.05)';
+        }
+    });
+}
+
+function createSupermanUI() {
+    injectSupermanStyles();
+    if (document.getElementById('kekaSuperman')) return;
+
+    const widget = document.createElement('div');
+    widget.id = 'kekaSuperman';
+    widget.style.cssText = `
+        position:fixed; top:20px; right:20px; z-index:2147483646;
+        width:385px; height:570px; border-radius:30px; overflow:hidden;
+        background:linear-gradient(180deg,#020D1F 0%,#08193A 30%,#0D1B2A 60%,#0A1020 100%);
+        box-shadow:0 0 0 4px #C41230, 0 0 0 8px #0D1B2A, 0 28px 80px rgba(0,0,0,.60);
+        animation:sm-slidein .7s cubic-bezier(.34,1.25,.64,1) forwards, sm-cape-glow 5s ease-in-out infinite 1s;
+        font-family:'Barlow Condensed',sans-serif;
+    `;
+
+    widget.innerHTML = `
+<!-- ══ SKYLINE CANVAS ══ -->
+<canvas id="smCity" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"></canvas>
+
+<!-- ══ SUPERMAN FLYING IMAGE ══ -->
+<img id="smFly"
+  src="${SUPERMAN_PNG}"
+  alt=""
+  style="position:absolute;z-index:5;pointer-events:none;
+         width:${SM_W}px;height:${SM_H}px;object-fit:contain;
+         filter:drop-shadow(0 4px 22px rgba(196,18,48,.65)) drop-shadow(0 2px 8px rgba(0,0,0,.85));
+         top:80px;left:-${SM_W}px;"/>
+
+<!-- ══ DARK OVERLAY (bottom half) ══ -->
+<div style="position:absolute;left:0;right:0;bottom:0;height:66%;
+  background:linear-gradient(180deg,rgba(2,13,31,0) 0%,rgba(2,13,31,.80) 35%,rgba(2,8,18,.97) 100%);
+  pointer-events:none;z-index:3;"></div>
+
+<!-- ══ HEADER ══ -->
+<div style="position:absolute;top:16px;left:16px;right:16px;display:flex;justify-content:space-between;align-items:flex-start;z-index:8;">
+  <div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:4px;color:#E8A000;line-height:1;">KRYPTONIAN HUD</div>
+    <div style="font-size:11px;letter-spacing:3px;color:rgba(232,160,0,.60);margin-top:1px;">METROPOLIS • MAN OF STEEL</div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+    <div style="font-size:11px;font-weight:700;background:#C41230;color:white;padding:4px 10px;border-radius:6px;letter-spacing:1px;">LIVE</div>
+    <button id="smMin"   style="width:30px;height:30px;border:1px solid rgba(232,160,0,.35);border-radius:8px;background:rgba(13,27,42,.7);color:#E8A000;font-size:18px;cursor:pointer;backdrop-filter:blur(8px);">−</button>
+    <button id="smClose" style="width:30px;height:30px;border:1px solid rgba(196,18,48,.4);border-radius:8px;background:rgba(13,27,42,.7);color:#C41230;font-size:16px;cursor:pointer;backdrop-filter:blur(8px);">×</button>
+  </div>
+</div>
+
+<!-- ══ MAIN CONTENT (bottom section) ══ -->
+<div id="smContent" style="position:absolute;bottom:0;left:0;right:0;z-index:9;padding:14px;">
+
+  <!-- BIG TIME DISPLAY -->
+  <div style="
+    background:rgba(2,8,20,.72);
+    border:1.5px solid rgba(232,160,0,.25);
+    border-radius:20px;
+    padding:14px 18px 10px;
+    margin-bottom:10px;
+    position:relative;
+    overflow:hidden;
+  ">
+    <!-- shimmer -->
+    <div style="position:absolute;top:0;left:0;width:40px;height:100%;
+      background:rgba(232,160,0,.08);
+      animation:sm-shimmer 5s linear infinite;pointer-events:none;"></div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <!-- Time -->
+      <div style="display:flex;align-items:flex-end;gap:4px;">
+        <div id="smHours" style="font-family:'Bebas Neue',sans-serif;font-size:64px;line-height:1;color:#E8A000;letter-spacing:2px;">0</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:rgba(232,160,0,.50);margin-bottom:6px;letter-spacing:1px;">H</div>
+        <div id="smMins"  style="font-family:'Bebas Neue',sans-serif;font-size:64px;line-height:1;color:white;letter-spacing:2px;">00</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:rgba(255,255,255,.40);margin-bottom:6px;letter-spacing:1px;">M</div>
+      </div>
+      <!-- Superman logo PNG (840x859 → display 82x84) -->
+      <img src="https://raw.githubusercontent.com/neelkanth23/keka/main/superman_logo.jpeg" alt=""
+        style="flex-shrink:0;width:82px;height:84px;object-fit:contain;
+               filter:drop-shadow(0 0 10px rgba(232,160,0,.55)) drop-shadow(0 0 4px rgba(0,0,0,.8));
+               animation:sm-float 3.5s ease-in-out infinite;"/>
+    </div>
+
+    <!-- Progress bar -->
+    <div style="height:8px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin:10px 0 4px;">
+      <div id="smProgress" style="height:100%;width:0%;border-radius:999px;
+        background:linear-gradient(90deg,#C41230 0%,#E8A000 50%,#fff8e1 100%);
+        background-size:200% 200%;
+        animation:sm-energy 3s ease infinite;
+        transition:width .8s cubic-bezier(.22,1,.36,1);"></div>
+    </div>
+
+    <!-- Kryptonite warning strip -->
+    <div style="display:flex;align-items:center;gap:7px;margin:7px 0 2px;">
+      <div style="flex:1;height:2px;border-radius:999px;background:linear-gradient(90deg,transparent,rgba(57,255,90,.18),rgba(57,255,90,.55),rgba(57,255,90,.18),transparent);animation:sm-energy 4s ease infinite;"></div>
+      <div style="font-size:9px;font-weight:700;letter-spacing:.2em;color:rgba(57,255,90,.45);">☢ KRYPTONITE EXPOSURE MINIMAL</div>
+      <div style="flex:1;height:2px;border-radius:999px;background:linear-gradient(90deg,transparent,rgba(57,255,90,.18),rgba(57,255,90,.55),rgba(57,255,90,.18),transparent);animation:sm-energy 4s ease infinite;"></div>
+    </div>
+
+    <!-- Tagline -->
+    <div id="smTagline" style="font-size:11px;font-weight:600;letter-spacing:2px;color:rgba(232,160,0,.55);text-align:center;margin-top:3px;">
+      "FASTER THAN A SPEEDING DEADLINE..."
+    </div>
+  </div>
+
+  <!-- STATS GRID -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+    <div style="background:rgba(196,18,48,.12);border:1px solid rgba(196,18,48,.28);border-radius:14px;padding:10px 12px;position:relative;overflow:hidden;">
+      <div style="font-size:9px;font-weight:700;letter-spacing:.22em;color:rgba(255,255,255,.45);margin-bottom:4px;">REMAINING</div>
+      <div id="smRemaining" style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1px;color:white;">8H 0M</div>
+    </div>
+    <div style="background:rgba(13,27,42,.60);border:1px solid rgba(232,160,0,.20);border-radius:14px;padding:10px 12px;">
+      <div style="font-size:9px;font-weight:700;letter-spacing:.22em;color:rgba(255,255,255,.45);margin-bottom:4px;">BREAK TIME</div>
+      <div id="smBreak" style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1px;color:#E8A000;">0M</div>
+    </div>
+    <div style="background:rgba(13,27,42,.60);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:10px 12px;">
+      <div style="font-size:9px;font-weight:700;letter-spacing:.22em;color:rgba(255,255,255,.45);margin-bottom:4px;">HALF DAY AT</div>
+      <div id="smHalf" style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:rgba(255,255,255,.75);">--</div>
+    </div>
+    <div style="background:rgba(13,27,42,.60);border:1px solid rgba(255,255,255,.10);border-radius:14px;padding:10px 12px;">
+      <div style="font-size:9px;font-weight:700;letter-spacing:.22em;color:rgba(255,255,255,.45);margin-bottom:4px;">MISSION END</div>
+      <div id="smFull" style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:rgba(255,255,255,.75);">--</div>
+    </div>
+  </div>
+
+  <!-- KRYPTONITE METER (replaces crystals) -->
+  <div style="background:rgba(2,8,20,.72);border:1px solid rgba(57,255,90,.15);border-radius:14px;padding:10px 14px 12px;
+              box-shadow:inset 0 0 18px rgba(57,255,90,.04);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.2em;color:rgba(57,255,90,.50);">☢ KRYPTONITE STATUS</div>
+      <div id="smPct" style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:#E8A000;">0%</div>
+    </div>
+    <!-- Segmented power bar — green tint on fill -->
+    <div style="display:flex;gap:3px;">
+      ${Array.from({length:20},(_,i)=>`<div class="sm-seg" data-i="${i}" style="flex:1;height:12px;border-radius:3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.05);transition:background .4s ease ${i*0.04}s;"></div>`).join('')}
+    </div>
+  </div>
+
+</div>
+`;
+
+    document.body.appendChild(widget);
+
+    refs = {
+        widget,
+        hours:      widget.querySelector('#smHours'),
+        mins:       widget.querySelector('#smMins'),
+        pct:        widget.querySelector('#smPct'),
+        progress:   widget.querySelector('#smProgress'),
+        tagline:    widget.querySelector('#smTagline'),
+        remaining:  widget.querySelector('#smRemaining'),
+        breakEl:    widget.querySelector('#smBreak'),
+        half:       widget.querySelector('#smHalf'),
+        full:       widget.querySelector('#smFull'),
+        content:    widget.querySelector('#smContent'),
+    };
+
+    // Close / minimize
+    let minimized = false;
+    widget.querySelector('#smMin').addEventListener('click', () => {
+        minimized = !minimized;
+        refs.content.style.display = minimized ? 'none' : 'block';
+        widget.style.height = minimized ? '72px' : '570px';
+        widget.querySelector('#smMin').textContent = minimized ? '+' : '−';
+    });
+    widget.querySelector('#smClose').addEventListener('click', () => {
+        widget.remove();
+        window.__KEKA_HERO_TRACKER__ = false;
+    });
+
+    // Start animations
+    startMetropolisSkyline('smCity', 385, 570);
+    startSupermanFly('smFly');
+}
+
+function showSupermanAchievement() {
+    if (document.getElementById('smAchieve')) return;
+    const el = document.createElement('div'); el.id = 'smAchieve';
+    el.innerHTML = `
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#E8A000;letter-spacing:2px;">S</div>
+        <div>
+          <div style="font-size:10px;letter-spacing:3px;color:rgba(232,160,0,.65);margin-bottom:2px;">KRYPTON APPROVES</div>
+          <div>MISSION ACCOMPLISHED!</div>
+        </div>`;
+    document.body.appendChild(el);
+    setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 500); }, 6000);
+}
+
+function updateSupermanUI(data, total, breaks, left, pct, h, mStr) {
+    setIfChanged(refs.hours, String(h));
+    setIfChanged(refs.mins,  mStr);
+    setIfChanged(refs.pct,   `${pct}%`);
+    setIfChanged(refs.remaining, fmtMinutes(left).toUpperCase());
+    setIfChanged(refs.breakEl,   fmtMinutes(breaks).toUpperCase());
+
+    refs.progress.style.width = `${pct}%`;
+
+    const taglines = [
+        '"FASTER THAN A SPEEDING DEADLINE..."',
+        '"TRUTH, JUSTICE & HALF A SHIFT DONE."',
+        '"MORE POWERFUL EVERY HOUR."',
+        '"LEAPING OVER TALL WORKDAYS..."',
+        '"THE CAPE IS EARNED. MISSION COMPLETE."'
+    ];
+    const ti = pct >= 100 ? 4 : pct >= 75 ? 3 : pct >= 50 ? 2 : pct >= 25 ? 1 : 0;
+    setIfChanged(refs.tagline, taglines[ti]);
+
+    if (data.firstStart) {
+        const sMin = parseTimeToMinutes(data.firstStart);
+        if (sMin !== null) {
+            const base = new Date();
+            base.setHours(Math.floor(sMin/60), sMin%60, 0, 0);
+            setIfChanged(refs.half, fmtTime(new Date(base.getTime() + (HALF_DAY_MINUTES + breaks)*60000)));
+            setIfChanged(refs.full, fmtTime(new Date(base.getTime() + (WORK_MINUTES     + breaks)*60000)));
+        }
+    }
+
+    updateKryptoniteBar(pct);
+
+    if (pct >= 100 && !missionDone) {
+        missionDone = true;
+        refs.widget.classList.add('sm-complete-widget');
+        showSupermanAchievement();
+    }
+}
+
+if (THEME === 'superman') createSupermanUI();
+
 // ─────────────────────────────────────────────────────
 // MASTER UPDATE
 // ─────────────────────────────────────────────────────
@@ -676,8 +1233,9 @@ function updateUI() {
     const pct    = Math.min(100, Math.round((total / WORK_MINUTES) * 100));
     const h      = Math.floor(total / 60);
     const mStr   = String(total % 60).padStart(2, '0');
-    if (THEME === 'mario') updateMarioUI(data, total, breaks, left, pct, h, mStr);
-    else                   updateSpiderUI(data, total, breaks, left, pct, h, mStr);
+    if      (THEME === 'mario')    updateMarioUI(data, total, breaks, left, pct, h, mStr);
+    else if (THEME === 'spiderman') updateSpiderUI(data, total, breaks, left, pct, h, mStr);
+    else                            updateSupermanUI(data, total, breaks, left, pct, h, mStr);
 }
 
 // ─────────────────────────────────────────────────────
@@ -698,8 +1256,8 @@ setInterval(updateUI, SCAN_INTERVAL_MS);
 startObservers();
 
 console.log(
-    `%c🕷️ KEKA HERO TRACKER v5 — ${THEME.toUpperCase()}`,
-    'color:#ff3d3d;font-size:14px;font-weight:bold;background:#0a0a0a;padding:4px 8px;border-radius:4px;'
+    `%c🦸 KEKA HERO TRACKER v6 — ${THEME.toUpperCase()}`,
+    'color:#E8A000;font-size:14px;font-weight:bold;background:#0D1B2A;padding:4px 10px;border-radius:4px;'
 );
 
 })();
