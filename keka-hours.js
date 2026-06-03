@@ -667,7 +667,7 @@ function updateSpiderUI(data, total, breaks, left, pct, h, mStr) {
 // ╚══════════════════════════════════════════════════════════════╝
 
 // Superman transparent PNG (classic suit, flying pose, public domain / CC0 sprite sheet render)
-const SUPERMAN_PNG = 'https://raw.githubusercontent.com/neelkanth23/keka/main/superman_fly.jpeg';
+const SUPERMAN_PNG = 'https://raw.githubusercontent.com/neelkanth23/keka/main/superman_fly.png';
 // Image is 860x299 — wide flying pose. Display at 280px wide → 97px tall
 const SM_W = 280;
 const SM_H = Math.round(SM_W * (299 / 860)); // ≈ 97px
@@ -1069,7 +1069,7 @@ function createSupermanUI() {
         <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:rgba(255,255,255,.40);margin-bottom:6px;letter-spacing:1px;">M</div>
       </div>
       <!-- Superman logo PNG (840x859 → display 82x84) -->
-      <img src="https://raw.githubusercontent.com/neelkanth23/keka/main/superman_logo.jpeg" alt=""
+      <img src="https://raw.githubusercontent.com/neelkanth23/keka/main/superman_logo.png" alt=""
         style="flex-shrink:0;width:82px;height:84px;object-fit:contain;
                filter:drop-shadow(0 0 10px rgba(232,160,0,.55)) drop-shadow(0 0 4px rgba(0,0,0,.8));
                animation:sm-float 3.5s ease-in-out infinite;"/>
